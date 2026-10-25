@@ -1,0 +1,6 @@
+# HTTPS for the API, with certificates issued automatically by Let's Encrypt.
+# DNS: create an A record api.smartpower.tn pointing to the OVH server's public IP.
+api.smartpower.tn {
+	encode gzip
+	reverse_proxy api:4000
+}

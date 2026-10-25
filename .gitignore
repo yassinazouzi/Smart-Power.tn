@@ -1,0 +1,63 @@
+# Secrets and environment
+secrets/
+.env
+.env.*
+!.env.example
+!.env.prod.example
+*.pem
+*.key
+
+# Dependencies
+node_modules/
+**/node_modules/
+vendor/
+**/vendor/
+
+# Android & Mobile build artifacts
+**/android/app/build/
+**/android/.gradle/
+**/android/build/
+**/android/app/.cxx/
+**/.cxx/
+**/.gradle/
+build/
+**/build/
+dist/
+**/dist/
+*.apk
+*.aab
+*.dex
+*.so
+
+# Binary executables and tools
+*.exe
+*.dll
+*.dylib
+tools/arduino-cli/
+
+# Python
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+ENV/
+*.egg-info/
+
+# Logs and databases
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.sqlite3
+*.db
+
+# IDE and OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

@@ -1,0 +1,16 @@
+ 1. Site Web & Applications
+URL en ligne officielle : https://smartpower.tn/testv2/
+Serveur local de développement : http://localhost:3000/
+Identifiant / Mot de passe du site : Aucun mot de passe requis (application cliente directe / SPA intégrée dans l'application Android).
+📡 2. Broker MQTT (HiveMQ)
+Broker : broker.hivemq.com
+Port standard (ESP32) : 1883 (TCP sans TLS)
+Port WebSockets (Site Web / React) : 8000 (ws://) ou 8884 (wss://)
+Nom d'utilisateur / Mot de passe MQTT : Aucun (broker public ouvert, connexion anonyme)
+
+🗄️ Identifiants Base de Données MySQL (OVH)
+Serveur hôte (Host) : smartpd100.mysql.db
+Nom de la base (Database) : smartpd100
+Utilisateur (User) : smartpd100
+Mot de passe (Password) : Khalil88smartpower
+Port : 3306 (standard MySQL)

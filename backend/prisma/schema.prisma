@@ -1,0 +1,203 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+// MySQL: the OVH database (smartpd100) is shared with the existing site, so every table is prefixed sp_.
+datasource db {
+  provider = "mysql"
+}
+
+enum HomeRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+// Platform role. Admins manage customers and devices; customers only use the app.
+enum UserRole {
+  ADMIN
+  CUSTOMER
+}
+
+enum DeviceType {
+  PLUG          // smart plug with energy metering
+  SWITCH        // single-channel relay
+  SWITCH_MULTI  // 2-4 channel relay
+  DIMMER
+  RGB_LIGHT
+  CURTAIN
+  SENSOR_TH     // temperature / humidity
+  ENERGY_METER  // whole-home / DIN-rail meter
+}
+
+enum SceneType {
+  MANUAL
+  AUTO
+}
+
+model User {
+  id            String         @id @default(cuid()) @db.VarChar(64)
+  email         String         @unique
+  name          String
+  passwordHash  String
+  role          UserRole       @default(CUSTOMER)
+  disabled      Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  memberships   HomeMember[]
+  refreshTokens RefreshToken[]
+
+  @@map("sp_users")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid()) @db.VarChar(64)
+  userId    String @db.VarChar(64)
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sp_refresh_tokens")
+}
+
+model Home {
+  id           String       @id @default(cuid()) @db.VarChar(64)
+  name         String
+  timezone     String       @default("Africa/Tunis")
+  currency     String       @default("TND")
+  tariffPerKwh Float        @default(0.176)
+  createdAt    DateTime     @default(now())
+  members      HomeMember[]
+  rooms        Room[]
+  devices      Device[]
+  scenes       Scene[]
+
+  @@map("sp_homes")
+}
+
+model HomeMember {
+  homeId String @db.VarChar(64)
+  userId String @db.VarChar(64)
+  role   HomeRole @default(MEMBER)
+  home   Home     @relation(fields: [homeId], references: [id], onDelete: Cascade)
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([homeId, userId])
+  @@index([userId])
+  @@map("sp_home_members")
+}
+
+model Room {
+  id      String   @id @default(cuid()) @db.VarChar(64)
+  homeId  String @db.VarChar(64)
+  name    String
+  icon    String   @default("sofa")
+  sort    Int      @default(0)
+  home    Home     @relation(fields: [homeId], references: [id], onDelete: Cascade)
+  devices Device[]
+
+  @@index([homeId])
+  @@map("sp_rooms")
+}
+
+model Device {
+  id           String          @id @db.VarChar(64) // factory id, also the MQTT client id
+  secretHash   String          // MQTT password hash
+  claimCode    String          // printed on the QR label, required to claim
+  type         DeviceType
+  model        String
+  channels     Int             @default(1)
+  firmware     String?
+  homeId       String? @db.VarChar(64)
+  roomId       String? @db.VarChar(64)
+  name         String?
+  online       Boolean         @default(false)
+  lastSeenAt   DateTime?
+  state        Json?           // reported state; null until the device first reports
+  createdAt    DateTime        @default(now())
+  claimedAt    DateTime?
+  home         Home?           @relation(fields: [homeId], references: [id], onDelete: SetNull)
+  room         Room?           @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  timers       Timer[]
+  readings     EnergyReading[]
+  hourly       EnergyHourly[]
+
+  @@index([homeId])
+  @@map("sp_devices")
+}
+
+model Timer {
+  id       String   @id @default(cuid()) @db.VarChar(64)
+  deviceId String @db.VarChar(64)
+  // "HH:mm" local time, days = ISO weekdays (1 = Monday) as a JSON array. Empty = every day.
+  at       String
+  days     Json
+  command  Json
+  enabled  Boolean  @default(true)
+  device   Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId])
+  @@map("sp_timers")
+}
+
+// Raw samples, throttled to one per device per minute.
+model EnergyReading {
+  id       BigInt   @id @default(autoincrement())
+  deviceId String @db.VarChar(64)
+  ts       DateTime @default(now())
+  powerW   Float
+  voltageV Float?
+  currentA Float?
+  device   Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, ts])
+  @@map("sp_energy_readings")
+}
+
+// Consumption rolled up per device per hour; the source for every energy chart.
+model EnergyHourly {
+  deviceId  String @db.VarChar(64)
+  hour      DateTime
+  energyWh  Float    @default(0)
+  maxPowerW Float    @default(0)
+  device    Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@id([deviceId, hour])
+  @@index([hour])
+  @@map("sp_energy_hourly")
+}
+
+model Scene {
+  id         String     @id @default(cuid()) @db.VarChar(64)
+  homeId     String @db.VarChar(64)
+  name       String
+  icon       String     @default("flash")
+  type       SceneType
+  enabled    Boolean    @default(true)
+  matchAll   Boolean    @default(false) // AUTO: all conditions (true) or any (false)
+  conditions Json
+  actions    Json
+  lastRunAt  DateTime?
+  createdAt  DateTime   @default(now())
+  home       Home       @relation(fields: [homeId], references: [id], onDelete: Cascade)
+  runs       SceneRun[]
+
+  @@index([homeId])
+  @@map("sp_scenes")
+}
+
+model SceneRun {
+  id      String   @id @default(cuid()) @db.VarChar(64)
+  sceneId String @db.VarChar(64)
+  ts      DateTime @default(now())
+  trigger String   @db.VarChar(191)
+  ok      Boolean
+  detail  String?  @db.Text
+  scene   Scene    @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+
+  @@index([sceneId, ts])
+  @@map("sp_scene_runs")
+}

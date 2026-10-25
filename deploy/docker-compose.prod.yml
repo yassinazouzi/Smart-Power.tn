@@ -1,0 +1,37 @@
+# Production on the OVH server. The database is the OVH MySQL service (smartpd100), reached from the server.
+# Copy .env.prod.example to .env.prod, fill in the values, then:
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+services:
+  api:
+    build: ../backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      PUBLIC_API_URL: https://api.smartpower.tn
+      CORS_ORIGINS: https://smartpower.tn
+      PUBLIC_MQTT_HOST: mqtt.smartpower.tn
+      PUBLIC_MQTT_PORT: 8883
+      ALLOW_SELF_REGISTRATION: "false"
+    # Devices connect on 1883 (plain) until MQTT over TLS is set up; see deploy/README.md.
+    ports:
+      - "1883:1883"
+      - "8083:8083"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
