@@ -6,6 +6,7 @@ secrets/
 !.env.prod.example
 *.pem
 *.key
+info.txt
 
 # Dependencies
 node_modules/

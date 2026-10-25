@@ -1,49 +1,83 @@
-# SmartPower
+# SmartPower.tn ⚡ — IoT Smart Home SaaS Platform
 
-Smart-home app for controlling devices and tracking energy use. Original project. Its design was informed by an analysis of the eWeLink 5.30.0 APK, but no eWeLink code, assets or private APIs are used.
+SmartPower est une plateforme SaaS IoT complète conçue pour la gestion domotique intelligente, le suivi énergétique en temps réel et le contrôle d'équipements connectés (ESP32, Sonoff, etc.).
 
-## Layout
+---
 
-- `app/`: React Native (TypeScript) app for Android and iOS. Login, home with rooms and devices, device control, energy charts, scenes.
-- `backend/`: Node.js API (Express, Prisma with PostgreSQL), MQTT broker (Aedes) for devices, realtime socket, scene and timer engine.
-- `docker-compose.yml`: local PostgreSQL.
-- `REA-analysis.md`: notes from the REA inspection of the reference APK.
+## 🏗️ Architecture du Projet
 
-## Run the backend
-
-```
-cd backend
-cp .env.example .env          # set JWT_SECRET
-docker compose -f ../docker-compose.yml up -d db
-npx prisma migrate deploy
-npm run dev                   # API :4000, MQTT :1883, MQTT over WebSocket :8083
-```
-
-## Simulate devices
-
-```
-npm run device:create -- --type PLUG --json > dev-plug.json
-npm run simulate -- --id <id> --secret <secret> --type PLUG
-```
-
-`device:create --json` prints the id, secret and claim code. To run the end-to-end check, provision one plug, one multi-channel switch and one sensor, start a simulator for each, then run:
-
-```
-DEVICES_DIR=<folder with dev-plug.json, dev-multi.json, dev-th.json> node scripts/smoke-test.mjs
+```text
+SmartPower/
+├── dashboard/               # Plateforme SaaS Web & API Flask
+│   ├── app.py               # Serveur Flask, synchronisation ESP32 & endpoints REST
+│   ├── mysql_manager.py     # Couche de persistance MySQL multi-tenant
+│   └── templates/
+│       └── index.html       # Interface UI avec Three.js (Vue 3D Isométrique) & Studio Caméra
+├── firmware/                # Codes sources pour microcontrôleurs
+│   ├── esp32_smartpower_dashboard/ # Firmware complet ESP32 (HTTP REST, mDNS, GPIO)
+│   └── esp32-switch/               # Firmware interrupteur connecté
+├── docs/                    # Spécifications & Architecture
+│   ├── SAAS_ARCHITECTURE.md
+│   ├── SAAS_BUSINESS_ROADMAP.md
+│   └── DEVICE_PROTOCOL_SPEC.md
+└── tools/                   # Utilitaires de compilation et de flash
+    ├── update_sketch.py
+    └── upgrade_sketch_sonoff.py
 ```
 
-## Run the app
+---
 
+## 🌟 Fonctionnalités Clés
+
+1. **Tableau de Bord SaaS Multi-Tenant :**
+   - Suivi énergétique temps réel (Puissance active, tension 230V, intensité, consommation kWh).
+   - Gestion des utilisateurs et matrice d'affectation dynamique des droits d'accès aux équipements.
+   - Synchronisation bidirectionnelle MySQL (`sp_devices`, `sp_users`, `sp_access`, `sp_scenes`, `sp_telemetry`).
+
+2. **Jumeau Numérique 3D Interactif :**
+   - Visualisation d'appartement en 3D Isométrique via **Three.js** avec rendu photoréaliste ACES Filmic et ombres douces.
+   - Presets de caméra (Isométrique, Salon, Chambre, Cuisine, Entrée, Plan 2D).
+   - Pins 3D interactifs géoréférencés sur les équipements physiques.
+   - Raycasting 3D pour basculer les relais physiques en cliquant sur le mobilier.
+   - Robot aspirateur patrouilleur animé en temps réel.
+   - Ambiance Nuit / Jour et mode Auto-Tour turntable.
+
+3. **Studio Caméra de Sécurité & Badge Dynamique :**
+   - Badge compact glassmorphic et carte de flux en direct.
+   - Moniteur de surveillance 16:9, Vision Nocturne IR et détection d'intrus.
+   - Contrôle PTZ interactif, Interphone audio avec animation de signal et sirène d'alerte 105 dB.
+
+4. **Synchronisation Matérielle ESP32 :**
+   - Détection automatique et handshake via USB COM et Wi-Fi mDNS (`smartpower-esp32.local`).
+   - Configuration Wi-Fi / provisioning direct depuis l'interface web.
+   - Détection instantanée des déconnexions physiques avec mise à jour du statut dans MySQL.
+
+---
+
+## 🚀 Démarrage Rapide
+
+### 1. Prérequis
+- Python 3.10+
+- Serveur MySQL (ex. WampServer / XAMPP ou MySQL Server)
+- Microcontrôleur ESP32 (optionnel pour la simulation)
+
+### 2. Configuration MySQL
+Importez les tables ou laissez l'initialisation automatique via `dashboard/mysql_manager.py` :
+```sql
+CREATE DATABASE IF NOT EXISTS smartpower_dev CHARACTER SET utf8mb4;
 ```
-cd app
-npm start                     # one terminal
-npm run android               # another terminal, with an emulator or device connected
+
+### 3. Lancer le Tableau de Bord
+```bash
+cd dashboard
+pip install flask pyserial requests mysql-connector-python
+python app.py
 ```
+Le tableau de bord est alors accessible sur :
+- Local : [http://localhost:8080](http://localhost:8080)
+- Réseau local : `http://<VOTRE_IP_LOCALE>:8080`
 
-The API address is set in `app/src/config.ts` (`10.0.2.2:4000` is the Android emulator's view of localhost).
+---
 
-## Status
-
-- **Backend:** auth, homes and rooms, device claim and control, timers, scenes (manual and automatic), energy summaries. The end-to-end smoke test passes against simulated devices.
-- **App:** TypeScript typecheck and Android bundle both pass. Not yet run on a device or emulator.
-- **Not built yet:** add-device pairing (QR or Wi-Fi), iOS build, push notifications, production TLS for MQTT.
+## 📄 Licence
+Propriété exclusive de SmartPower Tunisie. Tous droits réservés.
