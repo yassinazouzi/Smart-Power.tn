@@ -2051,7 +2051,7 @@
                     <div class="bg-white dark:bg-slate-800 rounded-2xl p-3.5 sm:p-4 border border-slate-200/80 dark:border-slate-700 shadow-xs hover:shadow-md transition flex items-center justify-between">
                         <div class="flex items-center space-x-3">
                             <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${mod.relay_state ? 'bg-orange-100 text-orange-500 dark:bg-orange-950/40' : 'bg-slate-100 text-slate-400 dark:bg-slate-700'}">
-                                <i data-lucide="${mod.type === 'PLUG' ? 'plug' : (mod.type === 'SENSOR_TH' ? 'thermometer' : 'lightbulb')}" class="w-5 h-5"></i>
+                                <i data-lucide="${mod.type === 'PLUG' ? 'plug' : (mod.type === 'SENSOR_TH' ? 'thermometer' : (mod.type === 'AIR_PURIFIER' ? 'wind' : 'lightbulb'))}" class="w-5 h-5"></i>
                             </div>
                             <div>
                                 <h4 class="text-xs font-bold text-slate-800 dark:text-white line-clamp-1">${escapeHtml(mod.name)}</h4>
@@ -2226,30 +2226,50 @@
                 const data = await res.json();
                 
                 if (data.success && data.discovered && data.discovered.length > 0) {
-                    container.innerHTML = data.discovered.map(dev => `
-                        <div class="p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-orange-200/80 dark:border-slate-700 flex items-center justify-between shadow-xs">
-                            <div class="space-y-0.5">
-                                <div class="flex items-center space-x-1.5">
-                                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                    <span class="text-xs font-bold text-slate-800 dark:text-white">${escapeHtml(dev.name)}</span>
-                                    <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-semibold">${escapeHtml(dev.id)}</span>
+                    container.innerHTML = data.discovered.map(dev => {
+                        const isXiaomi = (dev.brand || '').toLowerCase().includes('xiaomi');
+                        const isYeelight = (dev.brand || '').toLowerCase().includes('yeelight');
+                        const brandBadge = isXiaomi 
+                            ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">🟠 Xiaomi</span>`
+                            : (isYeelight 
+                                ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 border border-yellow-500/30">💡 Yeelight</span>`
+                                : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">⚡ Espressif</span>`);
+                        
+                        const icon = dev.icon || (isXiaomi ? '💨' : (isYeelight ? '💡' : '⚡'));
+                        
+                        return `
+                        <div class="p-3 rounded-2xl bg-white dark:bg-slate-800 border ${dev.already_associated ? 'border-slate-200 dark:border-slate-700' : 'border-orange-300 dark:border-orange-800 shadow-sm shadow-orange-500/10'} flex items-center justify-between gap-3 transition">
+                            <div class="flex items-center space-x-3 min-w-0">
+                                <div class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700/60 flex items-center justify-center text-xl shrink-0">
+                                    ${icon}
                                 </div>
-                                <div class="text-[10px] text-slate-400 flex items-center space-x-2">
-                                    <span>🌐 ${escapeHtml(dev.ip)}</span>
-                                    <span>📶 ${dev.signal || '-54 dBm'}</span>
-                                    <span>⚡ ${dev.connection || 'Wi-Fi LAN'}</span>
+                                <div class="space-y-0.5 min-w-0">
+                                    <div class="flex items-center space-x-1.5 flex-wrap gap-y-1">
+                                        <span class="text-xs font-bold text-slate-800 dark:text-white truncate">${escapeHtml(dev.name)}</span>
+                                        ${brandBadge}
+                                    </div>
+                                    <div class="text-[10px] text-slate-400 flex items-center space-x-2 flex-wrap">
+                                        <span>🌐 <b>${escapeHtml(dev.ip)}</b></span>
+                                        ${dev.mac ? `<span>🏷️ ${escapeHtml(dev.mac)}</span>` : ''}
+                                        <span>📡 ${escapeHtml(dev.connection || 'Wi-Fi')}</span>
+                                    </div>
+                                    ${dev.already_associated 
+                                        ? `<div class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center space-x-1"><span>✅ Déjà configuré dans le système</span></div>` 
+                                        : `<div class="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">✨ Prêt pour association Plug & Play</div>`}
                                 </div>
-                                ${dev.already_associated ? `<div class="text-[10px] text-amber-600 dark:text-amber-400 font-medium">ℹ️ Actuellement rattaché à : ${escapeHtml(dev.current_home || 'Maison')}</div>` : ''}
                             </div>
-                            <button type="button" onclick="selectDiscoveredDevice('${dev.id}', '${dev.claim_code}', '${escapeHtml(dev.name)}')" class="px-3 py-1.5 rounded-lg bg-orange-100 dark:bg-orange-950/60 hover:bg-orange-500 hover:text-white text-orange-700 dark:text-orange-300 text-xs font-bold transition active:scale-95 shrink-0">
-                                Sélectionner
+                            <button type="button" onclick="selectDiscoveredDevice('${dev.id}', '${dev.claim_code}', '${escapeHtml(dev.name)}', '${dev.type || ''}')" class="px-3.5 py-2 rounded-xl ${dev.already_associated ? 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200' : 'bg-orange-500 hover:bg-orange-600 text-white shadow-sm shadow-orange-500/30'} text-xs font-bold transition active:scale-95 shrink-0 flex items-center space-x-1">
+                                <i data-lucide="${dev.already_associated ? 'refresh-cw' : 'plus'}" class="w-3.5 h-3.5"></i>
+                                <span>${dev.already_associated ? 'Reconfigurer' : 'Associer'}</span>
                             </button>
                         </div>
-                    `).join('');
+                        `;
+                    }).join('');
+                    lucide.createIcons();
                 } else {
                     container.innerHTML = `
                         <div class="p-3 text-center text-xs text-slate-500">
-                            Aucun équipement non réclamé détecté. Assurez-vous que le module est branché et connecté au même Wi-Fi.
+                            Aucun équipement supplémentaire détecté. Assurez-vous que vos équipements (Xiaomi, Yeelight, SmartPower) sont allumés et sur le même réseau Wi-Fi.
                         </div>
                     `;
                 }
@@ -2261,13 +2281,22 @@
             }
         }
 
-        function selectDiscoveredDevice(id, claimCode, name) {
+        function selectDiscoveredDevice(id, claimCode, name, type) {
             const codeInput = document.getElementById('claimCodeInput');
             const nameInput = document.getElementById('claimNameInput');
+            const roomSelect = document.getElementById('claimRoomSelect');
             codeInput.value = claimCode || (id + 'CL');
             nameInput.value = name || ('Module ' + id);
+            
+            if (type === 'AIR_PURIFIER' || (name || '').toLowerCase().includes('purificateur')) {
+                if (roomSelect) roomSelect.value = 'Salon';
+            } else if (type === 'LIGHT_RGB' || (name || '').toLowerCase().includes('lampe')) {
+                if (roomSelect) roomSelect.value = 'Chambre';
+            }
+
             codeInput.classList.add('ring-2', 'ring-emerald-500', 'bg-emerald-50', 'dark:bg-emerald-950/40');
             setTimeout(() => codeInput.classList.remove('ring-2', 'ring-emerald-500', 'bg-emerald-50', 'dark:bg-emerald-950/40'), 1500);
+            nameInput.focus();
         }
 
         async function submitClientClaim(e) {

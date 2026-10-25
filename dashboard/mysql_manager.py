@@ -460,8 +460,20 @@ def client_claim_module(claim_code, home_id, room_name="Salon", custom_name=None
 
             dev_id = dev["id"] if dev else code_clean.replace("CL", "")
             m_name = custom_name if custom_name else (dev["name"] if dev and dev.get("name") else f"Module {dev_id}")
-            model = dev["model"] if dev and dev.get("model") else "SP-SW1"
-            m_type = dev["type"] if dev and dev.get("type") else "SWITCH"
+            
+            # Detect device type & model from brand / name if fresh
+            if dev and dev.get("model"):
+                model = dev["model"]
+                m_type = dev.get("type", "SWITCH")
+            elif "PURIFICATEUR" in m_name.upper() or "AIRPURIFIER" in m_name.upper():
+                model = "zhimi.airpurifier"
+                m_type = "AIR_PURIFIER"
+            elif "LAMPE" in m_name.upper() or "YEELIGHT" in m_name.upper() or "BULB" in m_name.upper():
+                model = "yeelight.bulb"
+                m_type = "LIGHT_RGB"
+            else:
+                model = "SP-SW1"
+                m_type = "SWITCH"
 
             # 2. Get or create room in customer's home
             cur.execute("SELECT id FROM sp_rooms WHERE homeId = %s AND name = %s LIMIT 1", (home_id, room_name))
