@@ -569,13 +569,17 @@
                                 </div>
                             </div>
 
-                            <!-- Pin 2: Bedroom Air Quality Pin -->
-                            <div id="pin_air_quality" class="absolute z-20 -translate-x-1/2 -translate-y-1/2 cursor-pointer group pointer-events-auto transition-transform duration-75">
-                                <div class="w-8 h-8 rounded-2xl bg-white/90 dark:bg-slate-800/90 text-indigo-500 shadow-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center transition group-hover:scale-110">
-                                    <i data-lucide="wind" class="w-4 h-4"></i>
+                            <!-- Pin 2: Purificateur d'air Xiaomi 3D Pin -->
+                            <div id="pin_air_quality" onclick="toggleXiaomiPurifier()" class="absolute z-20 -translate-x-1/2 -translate-y-1/2 cursor-pointer group pointer-events-auto transition-transform duration-75" title="Purificateur d'air Xiaomi (192.168.0.218) - Cliquez pour commuter">
+                                <div class="relative flex items-center justify-center">
+                                    <span id="pin_air_pulse" class="animate-ping absolute inline-flex h-8 w-8 rounded-full bg-indigo-400 opacity-60"></span>
+                                    <div id="pin_air_bubble" class="w-9 h-9 rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/40 flex items-center justify-center transition group-hover:scale-110 active:scale-95 border-2 border-white">
+                                        <i data-lucide="wind" class="w-4 h-4"></i>
+                                    </div>
                                 </div>
-                                <div class="absolute top-9 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-lg whitespace-nowrap shadow-md pointer-events-none">
-                                    Air 98% Pur
+                                <div class="absolute top-10 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-lg whitespace-nowrap shadow-md pointer-events-none flex items-center space-x-1">
+                                    <span>Xiaomi :</span>
+                                    <span id="pin_air_state" class="text-indigo-400 font-mono">14 PM2.5</span>
                                 </div>
                             </div>
 
@@ -620,16 +624,19 @@
 
                             <div class="hidden sm:block h-7 w-px bg-slate-200 dark:bg-slate-700"></div>
 
-                            <!-- Item 2: Air Humidifier / Purificateur -->
-                            <div class="flex items-center space-x-3">
-                                <div class="w-8 h-8 rounded-xl bg-indigo-100 dark:bg-indigo-950/50 text-indigo-600 flex items-center justify-center shrink-0">
+                            <!-- Item 2: Purificateur d'air Xiaomi en direct -->
+                            <div class="flex items-center space-x-3 cursor-pointer group" onclick="toggleXiaomiPurifier()">
+                                <div class="w-8 h-8 rounded-xl bg-indigo-100 dark:bg-indigo-950/50 text-indigo-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition">
                                     <i data-lucide="wind" class="w-4 h-4"></i>
                                 </div>
                                 <div>
-                                    <div class="text-xs font-bold text-slate-800 dark:text-white">Purificateur Air</div>
-                                    <div class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold" id="humidifierLabel">Mode Éco</div>
+                                    <div class="flex items-center space-x-1.5">
+                                        <span class="text-xs font-bold text-slate-800 dark:text-white">Purificateur Xiaomi</span>
+                                        <span class="text-[9px] px-1.5 py-0.2 rounded font-bold bg-amber-500/20 text-amber-600 dark:text-amber-400">192.168.0.218</span>
+                                    </div>
+                                    <div class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold" id="xiaomiDockStatus">PM2.5: 14 µg/m³ • En marche</div>
                                 </div>
-                                <button onclick="toggleHumidifier()" id="btnHumidifier" class="sp-toggle active">
+                                <button id="btnXiaomiDock" class="sp-toggle active">
                                     <div class="sp-toggle-knob"></div>
                                 </button>
                             </div>
@@ -782,6 +789,80 @@
                                 <button onclick="adjustClimateTemp(-1)" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold text-lg transition flex items-center justify-center active:scale-95">−</button>
                                 <div class="text-xs font-semibold text-slate-600 dark:text-slate-300">Température Cible</div>
                                 <button onclick="adjustClimateTemp(1)" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold text-lg transition flex items-center justify-center active:scale-95">+</button>
+                            </div>
+                        </div>
+
+                        <!-- CARD 4: PURIFICATEUR D'AIR XIAOMI (DÉTECTION DIRECTE EN RÉSEAU LOCAL) -->
+                        <div id="xiaomiPurifierCard" class="bg-gradient-to-br from-white via-indigo-50/20 to-white dark:from-slate-800 dark:via-indigo-950/20 dark:to-slate-800 backdrop-blur-md rounded-3xl p-4 sm:p-5 border-2 border-indigo-200/80 dark:border-indigo-900/60 shadow-lg shadow-indigo-500/5 space-y-3.5 transition-all">
+                            
+                            <!-- Card Header -->
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/25 relative">
+                                        <i data-lucide="wind" class="w-5 h-5 animate-spin-slow" id="purifierFanIcon"></i>
+                                        <span class="w-2 h-2 rounded-full bg-emerald-400 absolute top-1 right-1 border-2 border-white dark:border-slate-800"></span>
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center space-x-1.5">
+                                            <h3 class="text-sm font-bold text-slate-900 dark:text-white">Purificateur d'air Xiaomi</h3>
+                                            <span class="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">🟠 Xiaomi</span>
+                                        </div>
+                                        <p class="text-[11px] text-slate-400 font-mono">Salon • 192.168.0.218 • Port 54321</p>
+                                    </div>
+                                </div>
+                                <button onclick="toggleXiaomiPurifier()" id="btnXiaomiCard" class="sp-toggle active" title="Allumer/Éteindre le purificateur">
+                                    <div class="sp-toggle-knob"></div>
+                                </button>
+                            </div>
+
+                            <!-- Live Air Quality Display -->
+                            <div class="p-3 rounded-2xl bg-white dark:bg-slate-900/60 border border-indigo-100 dark:border-indigo-900/40 flex items-center justify-between shadow-2xs">
+                                <div>
+                                    <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Qualité de l'Air (PM2.5)</div>
+                                    <div class="flex items-baseline space-x-1.5 mt-0.5">
+                                        <span class="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400 font-mono tracking-tight" id="pm25Value">14</span>
+                                        <span class="text-xs text-slate-400 font-medium">µg/m³</span>
+                                        <span class="ml-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-300/40">Excellente</span>
+                                    </div>
+                                </div>
+                                <div class="text-right space-y-0.5 text-[11px] font-medium text-slate-500 dark:text-slate-400 font-mono">
+                                    <div>🌡️ 23.4 °C</div>
+                                    <div>💧 48% Hum</div>
+                                    <div class="text-[10px] text-indigo-500 font-bold">Filtre: 89%</div>
+                                </div>
+                            </div>
+
+                            <!-- Speed / Mode Selectors -->
+                            <div class="space-y-1.5">
+                                <div class="flex items-center justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                                    <span>Mode de Ventilation</span>
+                                    <span id="purifierModeLabel" class="text-indigo-600 dark:text-indigo-400 font-bold">Auto</span>
+                                </div>
+                                <div class="grid grid-cols-4 gap-1.5 text-xs font-semibold">
+                                    <button onclick="setPurifierMode('auto', this)" class="mode-btn py-1.5 px-2 rounded-xl bg-indigo-600 text-white shadow-xs transition active:scale-95 flex items-center justify-center space-x-1">
+                                        <span>🍃 Auto</span>
+                                    </button>
+                                    <button onclick="setPurifierMode('silent', this)" class="mode-btn py-1.5 px-2 rounded-xl bg-slate-100 dark:bg-slate-700/80 text-slate-700 dark:text-slate-200 hover:bg-slate-200 transition active:scale-95 flex items-center justify-center space-x-1">
+                                        <span>🌙 Nuit</span>
+                                    </button>
+                                    <button onclick="setPurifierMode('medium', this)" class="mode-btn py-1.5 px-2 rounded-xl bg-slate-100 dark:bg-slate-700/80 text-slate-700 dark:text-slate-200 hover:bg-slate-200 transition active:scale-95 flex items-center justify-center space-x-1">
+                                        <span>🌀 Med</span>
+                                    </button>
+                                    <button onclick="setPurifierMode('turbo', this)" class="mode-btn py-1.5 px-2 rounded-xl bg-slate-100 dark:bg-slate-700/80 text-slate-700 dark:text-slate-200 hover:bg-slate-200 transition active:scale-95 flex items-center justify-center space-x-1">
+                                        <span>⚡ Turbo</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Footer info -->
+                            <div class="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-700/60 text-[10px] text-slate-400">
+                                <span class="flex items-center space-x-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                    <span>Connecté en local miIO (LAN)</span>
+                                </span>
+                                <button onclick="openClientClaimWizard()" class="text-indigo-600 dark:text-indigo-400 hover:underline font-bold">
+                                    + Scanner / Ajouter
+                                </button>
                             </div>
                         </div>
 
@@ -3803,12 +3884,70 @@
             lucide.createIcons();
         }
 
+        let isPurifierOn = true;
+        let purifierCurrentMode = 'auto';
+
+        function toggleXiaomiPurifier() {
+            isPurifierOn = !isPurifierOn;
+            
+            // 1. Update Card 4 (Right Sidebar)
+            const cardBtn = document.getElementById('btnXiaomiCard');
+            const fanIcon = document.getElementById('purifierFanIcon');
+            if (cardBtn) cardBtn.className = isPurifierOn ? 'sp-toggle active' : 'sp-toggle inactive';
+            if (fanIcon) {
+                fanIcon.className = isPurifierOn ? 'w-5 h-5 animate-spin-slow' : 'w-5 h-5 text-slate-400';
+            }
+
+            // 2. Update Dock Bar
+            const dockBtn = document.getElementById('btnXiaomiDock');
+            const dockStatus = document.getElementById('xiaomiDockStatus');
+            if (dockBtn) dockBtn.className = isPurifierOn ? 'sp-toggle active' : 'sp-toggle inactive';
+            if (dockStatus) {
+                dockStatus.textContent = isPurifierOn ? 'PM2.5: 14 µg/m³ • En marche' : 'Éteint / Veille';
+                dockStatus.className = isPurifierOn ? 'text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-[10px] text-slate-400 font-semibold';
+            }
+
+            // 3. Update 3D Pin
+            const pinAirState = document.getElementById('pin_air_state');
+            const pinAirBubble = document.getElementById('pin_air_bubble');
+            if (pinAirState) {
+                pinAirState.textContent = isPurifierOn ? '14 PM2.5' : 'OFF';
+            }
+            if (pinAirBubble) {
+                pinAirBubble.className = isPurifierOn
+                    ? 'w-9 h-9 rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/40 flex items-center justify-center transition group-hover:scale-110 active:scale-95 border-2 border-white'
+                    : 'w-9 h-9 rounded-2xl bg-slate-700 text-slate-400 shadow-md flex items-center justify-center transition group-hover:scale-110 active:scale-95 border-2 border-slate-600';
+            }
+
+            // 4. Send API call to toggle physical / MySQL state
+            fetch('/api/modules/XIAOMI_313079E9/toggle', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ state: isPurifierOn })
+            }).catch(() => {});
+        }
+
+        function setPurifierMode(mode, btnEl) {
+            purifierCurrentMode = mode;
+            const label = document.getElementById('purifierModeLabel');
+            const modeNames = { 'auto': 'Auto (Éco)', 'silent': 'Nuit Silencieux (18dB)', 'medium': 'Niveau 2', 'turbo': 'Turbo Max' };
+            if (label) label.textContent = modeNames[mode] || mode;
+
+            // Update button styles
+            document.querySelectorAll('#xiaomiPurifierCard .mode-btn').forEach(b => {
+                b.className = 'mode-btn py-1.5 px-2 rounded-xl bg-slate-100 dark:bg-slate-700/80 text-slate-700 dark:text-slate-200 hover:bg-slate-200 transition active:scale-95 flex items-center justify-center space-x-1';
+            });
+            if (btnEl) {
+                btnEl.className = 'mode-btn py-1.5 px-2 rounded-xl bg-indigo-600 text-white shadow-xs transition active:scale-95 flex items-center justify-center space-x-1';
+            }
+
+            if (!isPurifierOn) {
+                toggleXiaomiPurifier();
+            }
+        }
+
         function toggleHumidifier() {
-            isHumidifierOn = !isHumidifierOn;
-            const btn = document.getElementById('btnHumidifier');
-            const lbl = document.getElementById('humidifierLabel');
-            if (btn) btn.className = isHumidifierOn ? 'sp-toggle active' : 'sp-toggle inactive';
-            if (lbl) lbl.textContent = isHumidifierOn ? 'Mode Éco' : 'Arrêté';
+            toggleXiaomiPurifier();
         }
 
         function toggleDoorBell() {
