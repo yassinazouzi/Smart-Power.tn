@@ -2047,21 +2047,29 @@
                     return;
                 }
 
-                container.innerHTML = modulesList.map(mod => `
+                container.innerHTML = modulesList.map(mod => {
+                    const isAirPurifier = mod.type === 'AIR_PURIFIER' || (mod.name || '').toLowerCase().includes('purificateur');
+                    const isXiaomi = (mod.name || '').toLowerCase().includes('xiaomi') || (mod.id || '').startsWith('XIAOMI_');
+                    const iconName = isAirPurifier ? 'wind' : (mod.type === 'PLUG' ? 'plug' : (mod.type === 'SENSOR_TH' ? 'thermometer' : 'lightbulb'));
+                    
+                    return `
                     <div class="bg-white dark:bg-slate-800 rounded-2xl p-3.5 sm:p-4 border border-slate-200/80 dark:border-slate-700 shadow-xs hover:shadow-md transition flex items-center justify-between">
                         <div class="flex items-center space-x-3">
-                            <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${mod.relay_state ? 'bg-orange-100 text-orange-500 dark:bg-orange-950/40' : 'bg-slate-100 text-slate-400 dark:bg-slate-700'}">
-                                <i data-lucide="${mod.type === 'PLUG' ? 'plug' : (mod.type === 'SENSOR_TH' ? 'thermometer' : (mod.type === 'AIR_PURIFIER' ? 'wind' : 'lightbulb'))}" class="w-5 h-5"></i>
+                            <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${mod.relay_state ? (isAirPurifier ? 'bg-indigo-100 text-indigo-500 dark:bg-indigo-950/40' : 'bg-orange-100 text-orange-500 dark:bg-orange-950/40') : 'bg-slate-100 text-slate-400 dark:bg-slate-700'}">
+                                <i data-lucide="${iconName}" class="w-5 h-5"></i>
                             </div>
                             <div>
-                                <h4 class="text-xs font-bold text-slate-800 dark:text-white line-clamp-1">${escapeHtml(mod.name)}</h4>
+                                <div class="flex items-center space-x-1.5">
+                                    <h4 class="text-xs font-bold text-slate-800 dark:text-white line-clamp-1">${escapeHtml(mod.name)}</h4>
+                                    ${isXiaomi ? '<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/20 text-amber-600 dark:text-amber-400">Xiaomi</span>' : ''}
+                                </div>
                                 <div class="flex items-center space-x-2 mt-0.5">
                                     <span class="inline-flex items-center space-x-1">
                                         <span class="w-1.5 h-1.5 rounded-full ${mod.online ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}" title="${mod.online ? 'En Ligne' : 'Hors Ligne'}"></span>
                                         <span class="text-[10px] font-mono text-orange-500 font-semibold">${escapeHtml(mod.id)}</span>
                                     </span>
                                     <span class="text-[10px] text-slate-400">• ${escapeHtml(mod.room)}</span>
-                                    <span class="text-[10px] font-mono text-emerald-600 font-bold">${mod.price_tnd} DT</span>
+                                    ${isAirPurifier ? '<span class="text-[10px] font-mono text-indigo-500 font-bold">• PM2.5: 14 µg/m³</span>' : `<span class="text-[10px] font-mono text-emerald-600 font-bold">${mod.price_tnd} DT</span>`}
                                 </div>
                             </div>
                         </div>
@@ -2074,7 +2082,8 @@
                             </button>
                         </div>
                     </div>
-                `).join('');
+                    `;
+                }).join('');
 
                 lucide.createIcons();
             } catch(e) {
@@ -2258,10 +2267,15 @@
                                         : `<div class="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">✨ Prêt pour association Plug & Play</div>`}
                                 </div>
                             </div>
-                            <button type="button" onclick="selectDiscoveredDevice('${dev.id}', '${dev.claim_code}', '${escapeHtml(dev.name)}', '${dev.type || ''}')" class="px-3.5 py-2 rounded-xl ${dev.already_associated ? 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200' : 'bg-orange-500 hover:bg-orange-600 text-white shadow-sm shadow-orange-500/30'} text-xs font-bold transition active:scale-95 shrink-0 flex items-center space-x-1">
-                                <i data-lucide="${dev.already_associated ? 'refresh-cw' : 'plus'}" class="w-3.5 h-3.5"></i>
-                                <span>${dev.already_associated ? 'Reconfigurer' : 'Associer'}</span>
-                            </button>
+                            <div class="flex flex-col items-end gap-1 shrink-0">
+                                <button type="button" onclick="quickAssociateDiscoveredDevice('${dev.id}', '${dev.claim_code}', '${escapeHtml(dev.name)}', '${dev.type || ''}', '${dev.ip || ''}', '${dev.brand || ''}', '${dev.model || ''}', this)" class="px-3.5 py-2 rounded-xl ${dev.already_associated ? 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200' : 'bg-orange-500 hover:bg-orange-600 text-white shadow-sm shadow-orange-500/30'} text-xs font-bold transition active:scale-95 flex items-center space-x-1">
+                                    <i data-lucide="${dev.already_associated ? 'refresh-cw' : 'plus'}" class="w-3.5 h-3.5"></i>
+                                    <span>${dev.already_associated ? 'Ré-associer' : 'Associer en 1-Clic'}</span>
+                                </button>
+                                <button type="button" onclick="selectDiscoveredDevice('${dev.id}', '${dev.claim_code}', '${escapeHtml(dev.name)}', '${dev.type || ''}')" class="text-[10px] text-slate-400 hover:text-orange-500 underline font-medium">
+                                    Personnaliser
+                                </button>
+                            </div>
                         </div>
                         `;
                     }).join('');
@@ -2281,6 +2295,69 @@
             }
         }
 
+        async function quickAssociateDiscoveredDevice(id, claimCode, name, type, ip, brand, model, btnEl) {
+            const homeSelect = document.getElementById('claimHomeSelect');
+            const roomSelect = document.getElementById('claimRoomSelect');
+            const targetHomeId = (homeSelect && homeSelect.value && homeSelect.value !== 'all') ? homeSelect.value : currentHomeId;
+            const targetRoom = (roomSelect && roomSelect.value) ? roomSelect.value : (type === 'AIR_PURIFIER' ? 'Salon' : 'Chambre');
+
+            if (!targetHomeId || targetHomeId === 'all') {
+                alert('Veuillez sélectionner un profil client / maison avant d\'associer.');
+                return;
+            }
+
+            const originalHtml = btnEl.innerHTML;
+            btnEl.disabled = true;
+            btnEl.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>Association...</span>`;
+            lucide.createIcons();
+
+            try {
+                const res = await fetch('/api/network/add_device', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        device: {
+                            id: id,
+                            name: name,
+                            type: type || 'SWITCH',
+                            model: model || 'SmartDevice',
+                            brand: brand || 'Xiaomi',
+                            ip: ip
+                        },
+                        homeId: targetHomeId,
+                        roomId: null
+                    })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    btnEl.className = 'px-3.5 py-2 rounded-xl bg-emerald-500 text-white text-xs font-bold transition flex items-center space-x-1';
+                    btnEl.innerHTML = `<i data-lucide="check" class="w-3.5 h-3.5"></i><span>✅ Associé !</span>`;
+                    lucide.createIcons();
+
+                    setTimeout(() => {
+                        closeClientClaimModal();
+                        if (targetHomeId !== currentHomeId) {
+                            selectHome(targetHomeId);
+                        } else {
+                            loadModules();
+                        }
+                        loadHomes();
+                    }, 800);
+                } else {
+                    alert('Erreur lors de l\'association : ' + (data.error || data.message));
+                    btnEl.disabled = false;
+                    btnEl.innerHTML = originalHtml;
+                    lucide.createIcons();
+                }
+            } catch (err) {
+                alert('Erreur réseau : ' + err.message);
+                btnEl.disabled = false;
+                btnEl.innerHTML = originalHtml;
+                lucide.createIcons();
+            }
+        }
+
         function selectDiscoveredDevice(id, claimCode, name, type) {
             const codeInput = document.getElementById('claimCodeInput');
             const nameInput = document.getElementById('claimNameInput');
@@ -2290,13 +2367,14 @@
             
             if (type === 'AIR_PURIFIER' || (name || '').toLowerCase().includes('purificateur')) {
                 if (roomSelect) roomSelect.value = 'Salon';
-            } else if (type === 'LIGHT_RGB' || (name || '').toLowerCase().includes('lampe')) {
+            } else if (type === 'LIGHT_RGB' || type === 'RGB_LIGHT' || (name || '').toLowerCase().includes('lampe')) {
                 if (roomSelect) roomSelect.value = 'Chambre';
             }
 
             codeInput.classList.add('ring-2', 'ring-emerald-500', 'bg-emerald-50', 'dark:bg-emerald-950/40');
             setTimeout(() => codeInput.classList.remove('ring-2', 'ring-emerald-500', 'bg-emerald-50', 'dark:bg-emerald-950/40'), 1500);
             nameInput.focus();
+            nameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
 
         async function submitClientClaim(e) {

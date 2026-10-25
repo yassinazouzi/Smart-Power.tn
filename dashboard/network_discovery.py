@@ -225,6 +225,8 @@ def register_discovered_device(dev_info, target_home_id="cmvjogkxo0002zcpxv7tixn
         dev_id = dev_info.get("id", f"DEV_{int(time.time())}")
         name = dev_info.get("name", "Équipement Connecté")
         dev_type = dev_info.get("type", "SWITCH")
+        if dev_type == "LIGHT_RGB":
+            dev_type = "RGB_LIGHT"
         model = dev_info.get("model", "SmartDevice")
         ip = dev_info.get("ip", "")
         brand = dev_info.get("brand", "Xiaomi")
@@ -245,7 +247,7 @@ def register_discovered_device(dev_info, target_home_id="cmvjogkxo0002zcpxv7tixn
             }
             if dev_type == "AIR_PURIFIER":
                 state_data.update({"pm25": 14, "mode": "auto", "favorite_level": 3})
-            elif dev_type == "LIGHT_RGB":
+            elif dev_type in ["RGB_LIGHT", "LIGHT_RGB"]:
                 state_data.update({"brightness": 80, "rgb": "#FFA500"})
 
             cur.execute("""
@@ -255,6 +257,8 @@ def register_discovered_device(dev_info, target_home_id="cmvjogkxo0002zcpxv7tixn
                 (%s, 'auto_discovered', %s, %s, %s, 1, '1.0.0', %s, %s, %s, 1, NOW(), %s, NOW(), NOW())
             ON DUPLICATE KEY UPDATE
                 name = VALUES(name),
+                type = VALUES(type),
+                model = VALUES(model),
                 online = 1,
                 state = VALUES(state),
                 lastSeenAt = NOW()
