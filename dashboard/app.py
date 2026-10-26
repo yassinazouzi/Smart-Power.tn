@@ -241,7 +241,7 @@ def status():
         "http_online": http_online,
         "ping_ms": ping_ms if ping_ms is not None else (7.5 if http_online else None),
         "error": connection_error,
-        "chip": "ESP32-S3 (Dual-Core 240MHz)",
+        "chip": "ESP32 Dev Module (Dual-Core 240MHz)",
         "deviceId": "F2ED08",
         "mac": "0c:b8:15:f2:ed:08",
         "wifi": {
@@ -527,7 +527,8 @@ def scan_modules():
 
 @app.route("/api/disconnect", methods=["POST"])
 def disconnect_port():
-    global ser, is_connected, connection_error
+    global ser, is_connected, connection_error, worker_paused
+    worker_paused = True
     with worker_lock:
         if ser and ser.is_open:
             try:
@@ -539,6 +540,12 @@ def disconnect_port():
         connection_error = "Port déconnecté manuellement."
         serial_logs.append("[SYSTEM] 🔌 Port déconnecté manuellement.")
     return jsonify({"success": True, "connected": False})
+
+@app.route("/api/connect", methods=["POST"])
+def connect_port():
+    global worker_paused
+    worker_paused = False
+    return jsonify({"success": True, "connected": True})
 
 @app.route("/api/reboot", methods=["POST"])
 def reboot_board():
@@ -755,28 +762,62 @@ def compile_and_upload():
 
         serial_logs.append(f"[BUILD] 🚀 Début de la compilation de {fname} ({fqbn})...")
 
-        # 2. Compile and upload command
-        cmd = [
+        # 2. Compile to output-dir
+        build_dir = os.path.join(os.path.dirname(sketch_dir), "build")
+        os.makedirs(build_dir, exist_ok=True)
+        compile_cmd = [
             cli_path, "compile",
             "--fqbn", fqbn,
-            "--upload",
-            "--port", COM_PORT,
+            "--output-dir", build_dir,
             sketch_dir
         ]
 
-        res = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
-        success = res.returncode == 0
-        output = (res.stdout + "\n" + res.stderr).strip()
+        c_res = subprocess.run(compile_cmd, capture_output=True, text=True, timeout=240)
+        if c_res.returncode != 0:
+            serial_logs.append(f"[BUILD] ❌ Échec de la compilation.")
+            return jsonify({
+                "success": False,
+                "output": c_res.stdout + "\n" + c_res.stderr,
+                "message": "Erreur lors de la compilation."
+            }), 400
+
+        serial_logs.append(f"[BUILD] ⚡ Compilation réussie. Téléversement haute vitesse (460 800 bauds)...")
+
+        # 3. Upload via modern esptool
+        bin_app = os.path.join(build_dir, f"{fname}.bin")
+        bin_boot = os.path.join(build_dir, f"{fname}.bootloader.bin")
+        bin_part = os.path.join(build_dir, f"{fname}.partitions.bin")
+
+        flash_args = [
+            sys.executable, "-m", "esptool",
+            "--chip", "esp32",
+            "--port", COM_PORT,
+            "--baud", "460800",
+            "--before", "default-reset",
+            "--after", "hard-reset",
+            "write-flash",
+            "--flash-mode", "dio",
+            "--flash-freq", "80m",
+            "--flash-size", "4MB"
+        ]
+        if os.path.exists(bin_boot) and os.path.exists(bin_part):
+            flash_args.extend(["0x1000", bin_boot, "0x8000", bin_part, "0x10000", bin_app])
+        else:
+            flash_args.extend(["0x10000", bin_app])
+
+        u_res = subprocess.run(flash_args, capture_output=True, text=True, timeout=60)
+        success = u_res.returncode == 0
+        output = (c_res.stdout + "\n" + u_res.stdout + "\n" + u_res.stderr).strip()
 
         if success:
             serial_logs.append(f"[BUILD] ✅ Téléversement réussi sur {COM_PORT} !")
         else:
-            serial_logs.append(f"[BUILD] ❌ Échec de compilation/téléversement.")
+            serial_logs.append(f"[BUILD] ❌ Échec du téléversement esptool.")
 
         return jsonify({
             "success": success,
             "output": output,
-            "message": "Compilation & Téléversement réussis sur l'ESP32 !" if success else "Échec de compilation ou de téléversement."
+            "message": "Compilation & Téléversement réussis sur l'ESP32 !" if success else "Échec du téléversement sur la carte."
         })
     except subprocess.TimeoutExpired:
         return jsonify({"success": False, "error": "Délai de compilation dépassé (5 minutes)"}), 504
