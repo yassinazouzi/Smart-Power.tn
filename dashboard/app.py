@@ -165,6 +165,12 @@ def serial_worker():
                         if clean:
                             serial_logs.append(clean)
                             parse_serial_for_wifi(clean)
+                            if clean.startswith("[BUTTON]") or clean.startswith("[RELAY]"):
+                                is_on = "ON" in clean or "ALLUME" in clean
+                                try:
+                                    mysql_manager.toggle_module_relay("F2ED08", is_on)
+                                except Exception:
+                                    pass
                             if len(serial_logs) > MAX_LOGS:
                                 serial_logs.pop(0)
         except Exception as e:

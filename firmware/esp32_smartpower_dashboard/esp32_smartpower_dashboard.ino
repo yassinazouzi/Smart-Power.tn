@@ -20,6 +20,7 @@
 #include <ArduinoJson.h>
 
 // Définitions matérielles
+#define BUTTON_PIN      0     // Bouton BOOT physique sur la carte ESP32
 #define RGB_PIN         21    // LED RGB WS2812 intégrée sur ESP32-S3-Zero
 #define RELAY_PIN       26    // Broche Relais
 #define LED_BUILTIN_PIN 2     // LED integree sur ESP32 Dev Module
@@ -200,8 +201,48 @@ void handleLedApi() {
 void setRelay(bool on) {
     relayState = on;
     digitalWrite(RELAY_PIN, on ? HIGH : LOW);
-    digitalWrite(LED_BUILTIN_PIN, on ? HIGH : LOW);
-    Serial.printf("[RELAY] Relais sur GPIO %d : %s\n", RELAY_PIN, on ? "ALLUME (ON)" : "ETEINT (OFF)");
+    digitalWrite(LED_BUILTIN_PIN, on ? HIGH : LOW); // Voyant Bleu intégré GPIO 2
+    
+    // Si LED RGB WS2812 présente sur la carte (ex: S3)
+    if (on) {
+        setRgbColor(0, 50, 255); // Voyant BLEU éclatant
+    } else {
+        if (WiFi.status() == WL_CONNECTED) {
+            setRgbColor(0, 30, 0); // Vert discret (connecté Wi-Fi)
+        } else if (isApMode) {
+            setRgbColor(30, 15, 0); // Orange discret (Mode AP)
+        } else {
+            setRgbColor(0, 0, 0); // Éteint
+        }
+    }
+    Serial.printf("[RELAY] Relais GPIO %d (Voyant Bleu) : %s\n", RELAY_PIN, on ? "ALLUME (ON)" : "ETEINT (OFF)");
+    Serial.printf("[STATE] {\"switch\":\"%s\"}\n", on ? "on" : "off");
+}
+
+void checkPhysicalButton() {
+    static int lastReading = HIGH;
+    static int buttonState = HIGH;
+    static unsigned long lastDebounceTime = 0;
+    const unsigned long debounceDelay = 50; // 50ms anti-rebond
+
+    int reading = digitalRead(BUTTON_PIN);
+
+    if (reading != lastReading) {
+        lastDebounceTime = millis();
+        lastReading = reading;
+    }
+
+    if ((millis() - lastDebounceTime) > debounceDelay) {
+        if (reading != buttonState) {
+            buttonState = reading;
+            if (buttonState == LOW) { // Clic détecté (Bouton BOOT pressé vers GND)
+                bool newState = !relayState;
+                Serial.printf("[BUTTON] Clic bouton physique (GPIO %d) -> %s\n", BUTTON_PIN, newState ? "ON" : "OFF");
+                setRelay(newState);
+                publishState();
+            }
+        }
+    }
 }
 
 void publishState() {
@@ -243,6 +284,7 @@ void connectMqtt() {
 
 void setup() {
     Serial.begin(115200);
+    pinMode(BUTTON_PIN, INPUT_PULLUP); // Bouton BOOT physique
     pinMode(RGB_PIN, OUTPUT);
     pinMode(RELAY_PIN, OUTPUT);
     pinMode(LED_BUILTIN_PIN, OUTPUT);
@@ -354,7 +396,16 @@ void checkSerialProvisioning() {
     if (Serial.available()) {
         String l = Serial.readStringUntil('\n');
         l.trim();
-        if (l.startsWith("WIFI ")) {
+        if (l == "RELAY 1" || l == "RELAY ON" || l == "ON") {
+            setRelay(true);
+            publishState();
+        } else if (l == "RELAY 0" || l == "RELAY OFF" || l == "OFF") {
+            setRelay(false);
+            publishState();
+        } else if (l == "TOGGLE") {
+            setRelay(!relayState);
+            publishState();
+        } else if (l.startsWith("WIFI ")) {
             int sp1 = l.indexOf(' ');
             int sp2 = l.indexOf(' ', sp1 + 1);
             if (sp2 > sp1) {
@@ -395,6 +446,7 @@ void checkSerialProvisioning() {
 }
 
 void loop() {
+    checkPhysicalButton();
     checkSerialProvisioning();
     if (isApMode) {
         dnsServer.processNextRequest();
