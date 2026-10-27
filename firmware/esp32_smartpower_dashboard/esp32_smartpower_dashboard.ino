@@ -11,6 +11,7 @@
  *  7. Intégration complète au protocole SmartPower MQTT
  */
 
+#include <esp_mac.h>
 #include <WiFi.h>
 #include <WebServer.h>
 #include <DNSServer.h>
@@ -32,7 +33,11 @@
 #define BUTTON_PIN      0     // Bouton BOOT physique sur la carte ESP32
 #define RGB_PIN         21    // LED RGB WS2812 intégrée sur ESP32-S3-Zero
 #define RELAY_PIN       26    // Broche Relais
-#define LED_BUILTIN_PIN 2     // LED integree sur ESP32 Dev Module
+#if defined(CONFIG_IDF_TARGET_ESP32S3) || defined(ARDUINO_ESP32S3_DEV)
+#define LED_BUILTIN_PIN -1    // Pas de GPIO 2 sur ESP32-S3 (broche strapping réservée)
+#else
+#define LED_BUILTIN_PIN 2     // LED integree sur ESP32 standard
+#endif
 #define DNS_PORT        53
 
 // Objets globaux
@@ -43,8 +48,8 @@ WiFiClient espClient;
 PubSubClient mqtt(espClient);
 
 // Configuration et état
-String wifiSsid = "SWEET-HOME";
-String wifiPass = "Joury@2027";
+String wifiSsid = "";
+String wifiPass = "";
 String deviceId = "F2ED08";
 String deviceSecret = "";
 String mqttHost = "broker.hivemq.com";
@@ -210,7 +215,7 @@ void handleLedApi() {
 void setRelay(bool on) {
     relayState = on;
     digitalWrite(RELAY_PIN, on ? HIGH : LOW);
-    digitalWrite(LED_BUILTIN_PIN, on ? HIGH : LOW); // Voyant Bleu intégré GPIO 2
+    if (LED_BUILTIN_PIN >= 0) digitalWrite(LED_BUILTIN_PIN, on ? HIGH : LOW);
     
     // Si LED RGB WS2812 présente sur la carte (ex: S3)
     if (on) {
@@ -385,7 +390,7 @@ void setup() {
     Serial.begin(115200);
     // Calcul dynamique de l'identifiant matériel depuis l'adresse MAC
     uint8_t macBytes[6];
-    WiFi.macAddress(macBytes);
+    esp_read_mac(macBytes, ESP_MAC_WIFI_STA);
     char bufId[7];
     snprintf(bufId, sizeof(bufId), "%02X%02X%02X", macBytes[3], macBytes[4], macBytes[5]);
     deviceId = String(bufId);
@@ -393,22 +398,24 @@ void setup() {
     pinMode(BUTTON_PIN, INPUT_PULLUP); // Bouton BOOT physique
     pinMode(RGB_PIN, OUTPUT);
     pinMode(RELAY_PIN, OUTPUT);
-    pinMode(LED_BUILTIN_PIN, OUTPUT);
+    if (LED_BUILTIN_PIN >= 0) {
+        pinMode(LED_BUILTIN_PIN, OUTPUT);
+        digitalWrite(LED_BUILTIN_PIN, LOW);
+    }
     digitalWrite(RELAY_PIN, LOW);
-    digitalWrite(LED_BUILTIN_PIN, LOW);
     setRgbColor(0, 0, 20); // Bleu discret au démarrage
 
     prefs.begin("smartpower", false);
-    wifiSsid = prefs.getString("ssid", wifiSsid);
-    prefs.putString("ssid", wifiSsid);
-    wifiPass = prefs.getString("pass", wifiPass);
-    prefs.putString("pass", wifiPass);
-    mqttHost = prefs.getString("mqtt_host", "broker.hivemq.com");
+    wifiSsid = prefs.getString("ssid", "");
+    wifiPass = prefs.getString("pass", "");
+    mqttHost = prefs.getString("mqtt_host", "127.0.0.1");
 
     Serial.println("\n--- Demarrage SmartPower ESP32-S3 ---");
+    // Activer immédiatement le Bluetooth Low Energy pour diffusion et appairage permanent
+    startBleProvisioning();
 
     if (wifiSsid.length() > 0) {
-        Serial.printf("Connexion a %s...\n", wifiSsid.c_str());
+        Serial.printf("Connexion au reseau memorise '%s'...\n", wifiSsid.c_str());
         WiFi.mode(WIFI_STA);
         WiFi.begin(wifiSsid.c_str(), wifiPass.c_str());
         
@@ -419,6 +426,8 @@ void setup() {
             timeout++;
         }
         Serial.println();
+    } else {
+        Serial.println("[BLE] Aucun Wi-Fi enregistre. Carte prete pour l'appairage sans fil Bluetooth (BLE) !");
     }
 
     if (WiFi.status() == WL_CONNECTED) {
@@ -429,7 +438,7 @@ void setup() {
     } else {
         Serial.println("Activation du mode Point d'acces (Portail Captif)...");
         isApMode = true;
-        startBleProvisioning();
+        if (!bleActive) startBleProvisioning();
         WiFi.mode(WIFI_AP_STA);
         String apName = "ESP32-RGB-" + deviceId;
         WiFi.softAP(apName.c_str());
@@ -572,4 +581,5 @@ void loop() {
         }
     }
 
+    delay(10); // Laisse du temps CPU au Watchdog et aux tâches FreeRTOS (BLE & Wi-Fi)
 }

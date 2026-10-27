@@ -1512,10 +1512,15 @@
                     </p>
                 </div>
 
-                <button type="button" onclick="startBleScanAndConnect()" id="btnStartBleScan" class="w-full flex items-center justify-center space-x-2 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-md shadow-blue-500/25 active:scale-98 cursor-pointer">
+                <button type="button" onclick="startBleScanAndConnect(false)" id="btnStartBleScan" class="w-full flex items-center justify-center space-x-2 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-md shadow-blue-500/25 active:scale-98 cursor-pointer">
                     <i data-lucide="bluetooth" class="w-4 h-4"></i>
                     <span>Scanner & Connecter en Bluetooth</span>
                 </button>
+                <div class="text-center pt-1">
+                    <button type="button" onclick="startBleScanAndConnect(true)" class="text-[11px] text-blue-500 hover:text-blue-600 dark:text-blue-400 font-medium hover:underline cursor-pointer">
+                        🔍 Appareil non détecté ? Scanner tous les périphériques BLE sans filtre
+                    </button>
+                </div>
             </div>
 
             <!-- Étape 2 : Formulaire Wi-Fi & Enregistrement -->
@@ -4365,9 +4370,9 @@
             lucide.createIcons();
         }
 
-        async function startBleScanAndConnect() {
+        async function startBleScanAndConnect(forceAll = false) {
             if (!navigator.bluetooth) {
-                alert("Votre navigateur ne supporte pas le Web Bluetooth. Veuillez utiliser Google Chrome ou Microsoft Edge.");
+                alert("Votre navigateur ne supporte pas le Web Bluetooth ou vous n'êtes pas sur un contexte sécurisé (localhost ou HTTPS).\n\nVeuillez ouvrir le tableau de bord sur http://localhost:8080 sous Google Chrome ou Microsoft Edge, et vérifier que le Bluetooth est activé dans vos paramètres Windows.");
                 return;
             }
 
@@ -4377,11 +4382,24 @@
             lucide.createIcons();
 
             try {
-                // Request BLE device advertising with prefix SmartPower- or all devices
-                bleActiveDevice = await navigator.bluetooth.requestDevice({
-                    filters: [{ namePrefix: 'SmartPower-' }],
-                    optionalServices: [BLE_SERVICE_UUID]
-                });
+                let scanOptions = {};
+                if (forceAll) {
+                    scanOptions = {
+                        acceptAllDevices: true,
+                        optionalServices: [BLE_SERVICE_UUID]
+                    };
+                } else {
+                    scanOptions = {
+                        filters: [
+                            { namePrefix: 'SmartPower' },
+                            { namePrefix: 'ESP' },
+                            { services: [BLE_SERVICE_UUID] }
+                        ],
+                        optionalServices: [BLE_SERVICE_UUID]
+                    };
+                }
+
+                bleActiveDevice = await navigator.bluetooth.requestDevice(scanOptions);
 
                 document.getElementById('bleConnectedDevName').textContent = bleActiveDevice.name || "ESP32-S3 Connecté";
                 

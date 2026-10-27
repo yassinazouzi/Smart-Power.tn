@@ -831,9 +831,12 @@ def compile_and_upload():
         bin_boot = os.path.join(build_dir, f"{fname}.bootloader.bin")
         bin_part = os.path.join(build_dir, f"{fname}.partitions.bin")
 
+        chip_type = "esp32s3" if ("s3" in fqbn.lower() or "s3" in fname.lower()) else "esp32"
+        boot_offset = "0x0000" if chip_type == "esp32s3" else "0x1000"
+
         flash_args = [
             sys.executable, "-m", "esptool",
-            "--chip", "esp32",
+            "--chip", chip_type,
             "--port", COM_PORT,
             "--baud", "460800",
             "--before", "default-reset",
@@ -844,7 +847,7 @@ def compile_and_upload():
             "--flash-size", "4MB"
         ]
         if os.path.exists(bin_boot) and os.path.exists(bin_part):
-            flash_args.extend(["0x1000", bin_boot, "0x8000", bin_part, "0x10000", bin_app])
+            flash_args.extend([boot_offset, bin_boot, "0x8000", bin_part, "0x10000", bin_app])
         else:
             flash_args.extend(["0x10000", bin_app])
 

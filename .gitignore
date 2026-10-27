@@ -62,3 +62,6 @@ yarn-error.log*
 *.swo
 .DS_Store
 Thumbs.db
+
+firmware/build_s3/
+
