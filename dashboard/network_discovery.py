@@ -16,6 +16,11 @@ OUI_DATABASE = {
     "00:15:8D": ("Aqara / Xiaomi", "SENSOR_HUB", "Passerelle / Capteur Aqara"),
     "0C:B8:15": ("Espressif / SmartPower", "ESP32_HUB", "Module SmartPower ESP32"),
     "24:0A:C4": ("Espressif / Sonoff", "SWITCH", "Interrupteur Sonoff DIY"),
+    "24:FB:E3": ("Espressif / Sonoff", "SWITCH", "Interrupteur Sonoff Wi-Fi"),
+    "EC:FA:BC": ("Sonoff / ITEAD", "SWITCH", "Interrupteur Sonoff Basic"),
+    "60:01:94": ("Sonoff / ITEAD", "SWITCH", "Interrupteur Sonoff Basic"),
+    "5C:CF:7F": ("Espressif / Sonoff", "SWITCH", "Interrupteur Sonoff Basic"),
+    "DC:4F:22": ("Espressif / Sonoff", "SWITCH", "Interrupteur Sonoff Basic"),
     "18:B9:05": ("Espressif Systems", "IOT_MODULE", "Module Espressif IoT"),
     "AC:D5:64": ("Espressif Systems", "IOT_MODULE", "Module Espressif IoT"),
     "24:62:AB": ("Tuya Smart", "SMART_SWITCH", "Interrupteur Tuya / SmartLife"),
@@ -41,11 +46,26 @@ def get_arp_table():
         print("ARP error:", e)
     return entries
 
+def get_active_subnets():
+    subnets = set()
+    try:
+        hostname = socket.gethostname()
+        for ip in socket.gethostbyname_ex(hostname)[2]:
+            if not ip.startswith("127.") and not ip.startswith("169.254."):
+                parts = ip.split(".")
+                if len(parts) == 4:
+                    subnets.add(f"{parts[0]}.{parts[1]}.{parts[2]}")
+    except Exception:
+        pass
+    if not subnets:
+        subnets.update(["192.168.0", "192.168.1", "172.16.50"])
+    return list(subnets)
+
 def ping_subnet_quick():
     """Quick ping sweep to populate ARP table for any silent devices."""
     def ping(ip):
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.settimeout(0.1)
+        s.settimeout(0.08)
         try:
             s.connect((ip, 54321))
             s.send(b'')
@@ -55,12 +75,13 @@ def ping_subnet_quick():
             s.close()
 
     threads = []
-    for i in range(1, 255):
-        t = threading.Thread(target=ping, args=(f"192.168.0.{i}",))
-        threads.append(t)
-        t.start()
+    for subnet in get_active_subnets():
+        for i in range(1, 255):
+            t = threading.Thread(target=ping, args=(f"{subnet}.{i}",))
+            threads.append(t)
+            t.start()
     for t in threads:
-        t.join(timeout=0.2)
+        t.join(timeout=0.15)
 
 def discover_lan():
     ping_subnet_quick()
