@@ -12,6 +12,7 @@ import urllib.request
 from flask import Flask, render_template, request, jsonify
 import mysql_manager
 import network_discovery
+import mqtt_service
 
 app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
@@ -275,6 +276,7 @@ def status():
         },
         "relay_gpio": 26,
         "relay_state": relay_on,
+        "mqtt": mqtt_service.get_mqtt_service_status(),
         "timestamp": time.strftime("%H:%M:%S")
     })
 
@@ -477,6 +479,10 @@ def add_module():
         return jsonify({"success": True, "module": res})
     return jsonify({"success": False, "error": str(res)}), 400
 
+@app.route("/api/mqtt/status", methods=["GET"])
+def api_mqtt_status():
+    return jsonify({"success": True, "mqtt": mqtt_service.get_mqtt_service_status()})
+
 @app.route("/api/modules/register", methods=["POST"])
 def register_ble_module():
     data = request.json or {}
@@ -501,6 +507,8 @@ def toggle_module(device_id):
             # Reflect on physical RGB LED on the real ESP32 board
             r, g, b = (249, 115, 22) if new_state else (20, 30, 45)
             threading.Thread(target=forward_led_to_esp32_ip, args=(r, g, b), daemon=True).start()
+        # Publish over local MQTT Broker
+        mqtt_service.publish_device_command(device_id, new_state)
         serial_logs.append(f"[RELAY] ⚡ Module {device_id} commuté -> {'ON' if new_state else 'OFF'}")
         return jsonify({"success": True, "message": msg, "relay_state": new_state})
     return jsonify({"success": False, "error": msg}), 400
@@ -938,5 +946,25 @@ def api_network_add_device():
 if __name__ == "__main__":
     t = threading.Thread(target=serial_worker, daemon=True)
     t.start()
+
+    # Démarrage du Broker MQTT local (Port 1883) & Client interne
+    try:
+        mqtt_service.start_embedded_broker()
+        mqtt_service.init_mqtt_client()
+        def handle_mqtt_msg(topic, payload_str):
+            try:
+                parts = topic.split('/')
+                if len(parts) >= 3 and parts[2] == 'state':
+                    dev_id = parts[1]
+                    data = json.loads(payload_str)
+                    if "switch" in data:
+                        is_on = data["switch"] == "on"
+                        mysql_manager.toggle_module_relay(dev_id, is_on)
+            except Exception:
+                pass
+        mqtt_service.register_mqtt_message_listener(handle_mqtt_msg)
+    except Exception as me:
+        print("[MQTT] Erreur démarrage service MQTT:", me)
+
     print(f"[*] Dashboard SmartPower ESP32 démarré sur http://localhost:8080")
     app.run(host="0.0.0.0", port=8080, debug=False)

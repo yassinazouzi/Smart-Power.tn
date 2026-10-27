@@ -178,13 +178,22 @@
                 </div>
 
                 <!-- Live Hardware Pill (Top Bar) -->
-                <div id="topHardwareBadge" onclick="toggleHardwarePanel()" class="hidden md:flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/80 cursor-pointer hover:bg-emerald-100 transition active:scale-95 shadow-2xs" title="Matériel ESP32 connecté en direct (COM7 • 192.168.0.119)">
+                <div id="topHardwareBadge" onclick="toggleHardwarePanel()" class="hidden md:flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/80 cursor-pointer hover:bg-emerald-100 transition active:scale-95 shadow-2xs" title="Matériel ESP32 connecté en direct">
                     <span class="relative flex h-2 w-2">
                         <span id="topHardwareDotPing" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                         <span id="topHardwareDot" class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                     </span>
                     <span id="topHardwareText" class="font-mono text-[11px]">ESP32 : 192.168.0.119</span>
                     <span id="topPingBadge" class="text-[9px] bg-emerald-200/60 dark:bg-emerald-900/60 px-1 py-0.2 rounded font-mono font-bold">7.5ms</span>
+                </div>
+
+                <!-- Live MQTT Broker Pill (Top Bar) -->
+                <div id="topMqttBadge" class="hidden lg:flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 border border-indigo-200/80 dark:border-indigo-800/80 shadow-2xs cursor-default" title="Broker MQTT Embarqué actif sur port 1883 & 9001 (WebSocket)">
+                    <span class="relative flex h-2 w-2">
+                        <span id="topMqttDotPing" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                        <span id="topMqttDot" class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                    </span>
+                    <span id="topMqttText" class="font-mono text-[11px]">Broker MQTT : 1883</span>
                 </div>
 
                 <!-- VIEW SWITCHER PILL (Vue 3D Live vs Vue Grille) -->
@@ -2879,6 +2888,26 @@
                 }
                 if (data.relay_state !== undefined) {
                     sync3dSceneWithHardware(data.relay_state);
+                }
+
+                // Sync MQTT Broker Pill
+                const topMqttBadge = document.getElementById('topMqttBadge');
+                const topMqttText = document.getElementById('topMqttText');
+                const topMqttDot = document.getElementById('topMqttDot');
+                const topMqttDotPing = document.getElementById('topMqttDotPing');
+                if (topMqttBadge && data.mqtt) {
+                    if (data.mqtt.broker_active) {
+                        topMqttBadge.className = "hidden lg:flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 border border-indigo-200/80 dark:border-indigo-800/80 shadow-2xs cursor-default";
+                        if (topMqttDot) topMqttDot.className = "relative inline-flex rounded-full h-2 w-2 bg-indigo-500";
+                        if (topMqttDotPing) topMqttDotPing.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75";
+                        if (topMqttText) topMqttText.textContent = `Broker MQTT : ${data.mqtt.broker_port || 1883}`;
+                        topMqttBadge.title = `Broker MQTT actif sur port ${data.mqtt.broker_port || 1883} | ${data.mqtt.messages_received || 0} reçus, ${data.mqtt.messages_sent || 0} envoyés`;
+                    } else {
+                        topMqttBadge.className = "hidden lg:flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700 shadow-2xs cursor-default";
+                        if (topMqttDot) topMqttDot.className = "relative inline-flex rounded-full h-2 w-2 bg-slate-400";
+                        if (topMqttDotPing) topMqttDotPing.className = "hidden";
+                        if (topMqttText) topMqttText.textContent = "MQTT : Inactif";
+                    }
                 }
             } catch(e) {}
         }
