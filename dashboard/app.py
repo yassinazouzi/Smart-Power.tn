@@ -280,18 +280,18 @@ def status():
     except Exception:
         pass
 
-    if not http_online:
-        try:
-            conn = mysql_manager.get_connection()
-            if conn:
-                with conn.cursor() as cur:
-                    cur.execute("SELECT relay_state FROM esp32_device_configs WHERE device_id = %s", (dev_id,))
-                    row = cur.fetchone()
-                    if row:
-                        relay_on = bool(row.get("relay_state", 0))
-                conn.close()
-        except Exception:
-            pass
+    # Always ensure relay_on is strictly synchronized with database state
+    try:
+        conn = mysql_manager.get_connection()
+        if conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT relay_state FROM esp32_device_configs WHERE device_id = %s", (dev_id,))
+                row = cur.fetchone()
+                if row and row.get("relay_state") is not None:
+                    relay_on = bool(row.get("relay_state", 0))
+            conn.close()
+    except Exception:
+        pass
 
     return jsonify({
         "port": COM_PORT,
