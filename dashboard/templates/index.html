@@ -2744,11 +2744,14 @@
                     container.innerHTML = data.discovered.map(dev => {
                         const isXiaomi = (dev.brand || '').toLowerCase().includes('xiaomi');
                         const isYeelight = (dev.brand || '').toLowerCase().includes('yeelight');
-                        const brandBadge = isXiaomi 
-                            ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">🟠 Xiaomi</span>`
-                            : (isYeelight 
-                                ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 border border-yellow-500/30">💡 Yeelight</span>`
-                                : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">⚡ Espressif</span>`);
+                        const isSonoffDev = (dev.brand || '').toLowerCase().includes('sonoff') || (dev.name || '').toLowerCase().includes('sonoff');
+                        const brandBadge = isSonoffDev
+                            ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30">⚡ Sonoff</span>`
+                            : (isXiaomi 
+                                ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">🟠 Xiaomi</span>`
+                                : (isYeelight 
+                                    ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 border border-yellow-500/30">💡 Yeelight</span>`
+                                    : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">⚡ Espressif</span>`));
                         
                         const icon = dev.icon || (isXiaomi ? '💨' : (isYeelight ? '💡' : '⚡'));
                         
