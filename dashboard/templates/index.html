@@ -974,9 +974,9 @@
                             <div>
                                 <h4 class="text-xs sm:text-sm font-bold text-slate-800 dark:text-white flex items-center space-x-1.5">
                                     <span>Module ESP32 Salon</span>
-                                    <span class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300 font-bold">F2ED08</span>
+                                    <span id="espCardDeviceId" class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300 font-bold">ADA960</span>
                                 </h4>
-                                <p class="text-[10px] text-slate-400 font-mono">Dual-Core 240MHz • USB COM7</p>
+                                <p id="espCardChipText" class="text-[10px] text-slate-400 font-mono">ESP32-S3 • Wi-Fi 172.16.50.194</p>
                             </div>
                         </div>
 
@@ -1022,10 +1022,16 @@
                             </div>
                             <div id="espRelayStateLabel" class="font-bold text-slate-800 dark:text-white font-mono text-xs">OFF (Ouvert)</div>
                         </div>
-                        <button onclick="toggleModule('F2ED08')" id="btnEspToggle" class="sp-toggle inactive" title="Commuter le Relais Physique">
+                        <button onclick="toggleActiveHardware()" id="btnEspToggle" class="sp-toggle inactive" title="Commuter le Relais Physique">
                             <div id="knobEspToggle" class="sp-toggle-knob"></div>
                         </button>
                     </div>
+
+                    <!-- Remote control full options trigger -->
+                    <button onclick="openDeviceRemoteModal(activeHardwareDeviceId || 'ADA960')" class="w-full py-2.5 px-3 rounded-2xl bg-orange-500/10 hover:bg-orange-500 hover:text-white text-orange-600 dark:text-orange-400 font-bold text-xs transition flex items-center justify-center space-x-2 border border-orange-500/20 active:scale-95 shadow-xs">
+                        <i data-lucide="sliders" class="w-4 h-4"></i>
+                        <span>Ouvrir Télécommande Complète & Options</span>
+                    </button>
 
                     <!-- Physical RGB LED Selector (Instant visual proof on the real board) -->
                     <div class="pt-1 border-t border-slate-100 dark:border-slate-700/60 space-y-2">
@@ -2095,6 +2101,202 @@
         </div>
     </div>
 
+    
+    <!-- ========================================================================= -->
+    <!-- MODAL 6: TÉLÉCOMMANDE & OPTIONS COMPLÈTES DU MODULE (ESP32-S3 / SMARTPOWER) -->
+    <!-- ========================================================================= -->
+    <div id="deviceRemoteModal" onclick="if(event.target === this) closeDeviceRemoteModal()" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-3 sm:p-4">
+        <div class="bg-white dark:bg-slate-800 w-full max-w-2xl rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-5 max-h-[92vh] overflow-y-auto custom-scrollbar animate-in zoom-in-95 duration-200">
+            <!-- Mobile Handle -->
+            <div class="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto mb-1 sm:hidden shrink-0"></div>
+
+            <!-- Header -->
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
+                <div class="flex items-center space-x-3.5">
+                    <div id="remoteModalIconBox" class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center shadow-lg shadow-orange-500/25 shrink-0">
+                        <i id="remoteModalIcon" data-lucide="cpu" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <h3 id="remoteModalTitle" class="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white">Interrupteur ESP32-S3</h3>
+                            <span id="remoteModalIdBadge" class="font-mono text-xs px-2 py-0.5 rounded-lg bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300 font-bold">ADA960</span>
+                        </div>
+                        <div class="flex items-center space-x-2 mt-0.5 text-xs text-slate-400">
+                            <span id="remoteModalRoomBadge" class="flex items-center space-x-1">
+                                <i data-lucide="map-pin" class="w-3 h-3 text-orange-500"></i>
+                                <span id="remoteModalRoomText">Salon</span>
+                            </span>
+                            <span>•</span>
+                            <span id="remoteModalStatusBadge" class="inline-flex items-center space-x-1 text-emerald-600 dark:text-emerald-400 font-bold">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <span id="remoteModalStatusText">En Ligne (Wi-Fi)</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <button onclick="closeDeviceRemoteModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- SECTION 1: COMMUTATEUR RELAIS XXL -->
+            <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-orange-50/40 dark:from-slate-900/60 dark:to-orange-950/20 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between">
+                <div>
+                    <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Alimentation Principale</div>
+                    <div id="remoteRelayStateLabel" class="text-lg sm:text-xl font-extrabold text-slate-800 dark:text-white font-mono mt-0.5">Éteint (Relais Ouvert)</div>
+                    <div class="text-xs text-slate-400 mt-1 flex items-center space-x-2">
+                        <span>10A / 2300W • GPIO 26</span>
+                        <span id="remoteLiveFeedback" class="text-emerald-600 dark:text-emerald-400 font-semibold font-mono text-[11px] hidden">⚡ Commuté avec succès</span>
+                    </div>
+                </div>
+                <button id="btnRemoteRelayToggle" onclick="toggleRemoteCurrentDevice()" class="sp-toggle inactive scale-125 origin-right hover:shadow-lg transition">
+                    <div id="knobRemoteRelayToggle" class="sp-toggle-knob"></div>
+                </button>
+            </div>
+
+            <!-- SECTION 2: ÉCLAIRAGE & LED RGB WS2812 DE LA CARTE -->
+            <div class="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-700/80 space-y-3.5">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <i data-lucide="palette" class="w-4 h-4 text-orange-500"></i>
+                        <h4 class="text-xs sm:text-sm font-bold text-slate-800 dark:text-white">LED RGB WS2812 Physique & Ambiance</h4>
+                    </div>
+                    <div class="flex items-center space-x-1.5">
+                        <span id="remoteLedColorBadge" class="inline-block w-3.5 h-3.5 rounded-full bg-orange-500 shadow-sm border border-white"></span>
+                        <span id="remoteLedColorText" class="text-xs font-mono text-slate-500 dark:text-slate-400 font-semibold">Orange SmartPower</span>
+                    </div>
+                </div>
+
+                <!-- 8 Color Presets Grid -->
+                <div class="grid grid-cols-4 sm:grid-cols-8 gap-2">
+                    <button onclick="setRemoteLed(249, 115, 22, 'Orange SmartPower', '#f97316')" class="h-10 rounded-xl bg-orange-500 hover:scale-105 active:scale-95 transition shadow-sm flex flex-col items-center justify-center text-white" title="Orange SmartPower">
+                        <span class="text-[9px] font-bold">Orange</span>
+                    </button>
+                    <button onclick="setRemoteLed(16, 185, 129, 'Vert Éco', '#10b981')" class="h-10 rounded-xl bg-emerald-500 hover:scale-105 active:scale-95 transition shadow-sm flex flex-col items-center justify-center text-white" title="Vert Éco">
+                        <span class="text-[9px] font-bold">Vert</span>
+                    </button>
+                    <button onclick="setRemoteLed(59, 130, 246, 'Bleu Azur', '#3b82f6')" class="h-10 rounded-xl bg-blue-500 hover:scale-105 active:scale-95 transition shadow-sm flex flex-col items-center justify-center text-white" title="Bleu Azur">
+                        <span class="text-[9px] font-bold">Bleu</span>
+                    </button>
+                    <button onclick="setRemoteLed(239, 68, 68, 'Rouge Alerte', '#ef4444')" class="h-10 rounded-xl bg-rose-500 hover:scale-105 active:scale-95 transition shadow-sm flex flex-col items-center justify-center text-white" title="Rouge Alerte">
+                        <span class="text-[9px] font-bold">Rouge</span>
+                    </button>
+                    <button onclick="setRemoteLed(168, 85, 247, 'Violet Ambiance', '#a855f7')" class="h-10 rounded-xl bg-purple-500 hover:scale-105 active:scale-95 transition shadow-sm flex flex-col items-center justify-center text-white" title="Violet Ambiance">
+                        <span class="text-[9px] font-bold">Violet</span>
+                    </button>
+                    <button onclick="setRemoteLed(6, 182, 212, 'Cyan Lagon', '#06b6d4')" class="h-10 rounded-xl bg-cyan-500 hover:scale-105 active:scale-95 transition shadow-sm flex flex-col items-center justify-center text-white" title="Cyan Lagon">
+                        <span class="text-[9px] font-bold">Cyan</span>
+                    </button>
+                    <button onclick="setRemoteLed(254, 243, 199, 'Blanc Chaud', '#fef3c7')" class="h-10 rounded-xl bg-amber-100 hover:scale-105 active:scale-95 transition shadow-sm border border-amber-300 flex flex-col items-center justify-center text-amber-800" title="Blanc Chaud">
+                        <span class="text-[9px] font-bold">Chaud</span>
+                    </button>
+                    <button onclick="setRemoteLed(0, 0, 0, 'Éteinte', '#000000')" class="h-10 rounded-xl bg-slate-200 dark:bg-slate-700 hover:scale-105 active:scale-95 transition shadow-sm flex flex-col items-center justify-center text-slate-700 dark:text-slate-300" title="Éteindre la LED">
+                        <span class="text-[9px] font-bold">OFF</span>
+                    </button>
+                </div>
+
+                <!-- Custom Color Picker & Brightness Slider -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div class="flex items-center space-x-2.5 bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800">
+                        <input type="color" id="remoteColorInput" value="#f97316" onchange="onCustomColorPick(this.value)" class="w-8 h-8 rounded-lg cursor-pointer border-0 bg-transparent">
+                        <div class="flex-1">
+                            <div class="text-[10px] text-slate-400 font-medium">Couleur Personnalisée</div>
+                            <div id="remoteCustomColorHex" class="font-mono text-xs font-bold text-slate-700 dark:text-slate-200">#F97316</div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800 space-y-1">
+                        <div class="flex items-center justify-between text-[10px]">
+                            <span class="text-slate-400 font-medium">Luminosité LED</span>
+                            <span id="remoteBrightnessVal" class="font-mono font-bold text-orange-500">100%</span>
+                        </div>
+                        <input type="range" id="remoteBrightnessSlider" min="5" max="100" value="100" oninput="onBrightnessChange(this.value)" class="w-full accent-orange-500 cursor-pointer">
+                    </div>
+                </div>
+
+                <!-- Lighting Mode Effect Selector -->
+                <div class="flex items-center space-x-2 pt-1 text-xs">
+                    <span class="text-[10px] text-slate-400 font-medium shrink-0">Effet :</span>
+                    <button id="btnEffectSolid" onclick="setRemoteLedMode('solid')" class="px-2.5 py-1 rounded-lg bg-orange-500 text-white font-semibold text-[11px] shadow-xs">Fixe</button>
+                    <button id="btnEffectBreathe" onclick="setRemoteLedMode('breathe')" class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 font-semibold text-[11px]">Respiration</button>
+                    <button id="btnEffectStrobe" onclick="setRemoteLedMode('strobe')" class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 font-semibold text-[11px]">Flash Alerte</button>
+                </div>
+            </div>
+
+            <!-- SECTION 3: MINUTERIE & ARRÊT PROGRAMMÉ (AUTO-OFF TIMER) -->
+            <div class="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-700/80 space-y-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <i data-lucide="timer" class="w-4 h-4 text-amber-500"></i>
+                        <h4 class="text-xs sm:text-sm font-bold text-slate-800 dark:text-white">Minuterie & Extinction Programmée</h4>
+                    </div>
+                    <div id="remoteTimerActiveBadge" class="hidden items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 text-xs font-mono font-bold">
+                        <i data-lucide="clock" class="w-3 h-3 animate-spin"></i>
+                        <span id="remoteTimerCountdown">14:59</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                    <button onclick="setRemoteTimer(5)" class="py-2 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-orange-50 hover:border-orange-500 border border-slate-200/70 dark:border-slate-700 font-bold text-xs text-slate-700 dark:text-slate-200 transition active:scale-95">5 min</button>
+                    <button onclick="setRemoteTimer(15)" class="py-2 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-orange-50 hover:border-orange-500 border border-slate-200/70 dark:border-slate-700 font-bold text-xs text-slate-700 dark:text-slate-200 transition active:scale-95">15 min</button>
+                    <button onclick="setRemoteTimer(30)" class="py-2 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-orange-50 hover:border-orange-500 border border-slate-200/70 dark:border-slate-700 font-bold text-xs text-slate-700 dark:text-slate-200 transition active:scale-95">30 min</button>
+                    <button onclick="setRemoteTimer(60)" class="py-2 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-orange-50 hover:border-orange-500 border border-slate-200/70 dark:border-slate-700 font-bold text-xs text-slate-700 dark:text-slate-200 transition active:scale-95">1 heure</button>
+                    <button onclick="setRemoteTimer(0)" class="py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 border border-rose-200 dark:border-rose-800 font-bold text-xs text-rose-600 dark:text-rose-400 transition active:scale-95 col-span-2 sm:col-span-1">Annuler</button>
+                </div>
+            </div>
+
+            <!-- SECTION 4: TÉLÉMÉTRIE, RÉSEAU & DIAGNOSTIC EN DIRECT -->
+            <div class="p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-700/80 space-y-3">
+                <div class="flex items-center justify-between text-xs">
+                    <span class="font-bold text-slate-700 dark:text-slate-300 flex items-center space-x-1.5">
+                        <i data-lucide="activity" class="w-4 h-4 text-emerald-500"></i>
+                        <span>Diagnostic Réseau & Télémétrie</span>
+                    </span>
+                    <button onclick="refreshRemoteTelemetry()" class="text-[11px] text-orange-600 dark:text-orange-400 hover:underline flex items-center space-x-1 font-semibold">
+                        <i data-lucide="refresh-cw" class="w-3 h-3"></i>
+                        <span>Tester la liaison</span>
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                    <div class="bg-white dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200/70 dark:border-slate-700/70">
+                        <div class="text-[10px] text-slate-400">Signal Wi-Fi</div>
+                        <div id="remoteDiagRssi" class="font-mono font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">-52 dBm (Excellent)</div>
+                    </div>
+                    <div class="bg-white dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200/70 dark:border-slate-700/70">
+                        <div class="text-[10px] text-slate-400">Latence Ping</div>
+                        <div id="remoteDiagPing" class="font-mono font-bold text-slate-800 dark:text-white mt-0.5">8.4 ms</div>
+                    </div>
+                    <div class="bg-white dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200/70 dark:border-slate-700/70">
+                        <div class="text-[10px] text-slate-400">Adresse IP Locale</div>
+                        <a id="remoteDiagIp" href="http://172.16.50.194" target="_blank" class="font-mono font-bold text-orange-600 dark:text-orange-400 hover:underline mt-0.5 block truncate">172.16.50.194 ↗</a>
+                    </div>
+                    <div class="bg-white dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200/70 dark:border-slate-700/70">
+                        <div class="text-[10px] text-slate-400">Adresse MAC</div>
+                        <div id="remoteDiagMac" class="font-mono font-bold text-slate-700 dark:text-slate-300 mt-0.5 truncate">b4:3a:45:ad:a9:60</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION 5: OUTILS SYSTÈME & ACTIONS RAPIDES -->
+            <div class="pt-2 flex flex-wrap items-center justify-between gap-2.5 border-t border-slate-100 dark:border-slate-700">
+                <div class="flex items-center space-x-2">
+                    <button onclick="flashTestRelay()" class="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center space-x-1.5 transition active:scale-95" title="Allume 2 secondes puis éteint pour tester">
+                        <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-500"></i>
+                        <span>Test Impulsion (2s)</span>
+                    </button>
+                    <button onclick="rebootRemoteBoard()" class="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 text-xs font-semibold flex items-center space-x-1.5 transition active:scale-95" title="Redémarrer l'ESP32 proprement">
+                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                        <span>Redémarrer la carte</span>
+                    </button>
+                </div>
+                <a id="btnRemoteOpenWebServer" href="http://172.16.50.194" target="_blank" class="px-3.5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold flex items-center space-x-1.5 transition active:scale-95 shadow-xs">
+                    <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                    <span>Serveur Web Embarqué</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
     <!-- SCRIPTS -->
     <script>
         lucide.createIcons();
@@ -2292,6 +2494,12 @@
                         </div>
 
                         <div class="flex items-center space-x-2 shrink-0">
+                            <button onclick="openDeviceRemoteModal('${mod.id}')" 
+                                    class="px-2.5 py-1.5 rounded-xl bg-orange-500/10 hover:bg-orange-500 hover:text-white text-orange-600 dark:text-orange-400 font-bold text-xs transition flex items-center space-x-1.5 border border-orange-500/20 active:scale-95 shadow-2xs"
+                                    title="Télécommande & Options complètes (${escapeHtml(mod.name)})">
+                                <i data-lucide="sliders" class="w-3.5 h-3.5"></i>
+                                <span class="hidden sm:inline">Télécommande</span>
+                            </button>
                             <button onclick="toggleModule('${mod.id}')" 
                                     class="sp-toggle ${mod.relay_state ? 'active' : 'inactive'}"
                                     title="Commuter ${escapeHtml(mod.name)}">
@@ -2836,9 +3044,16 @@
                         modalEspDot.className = "w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse";
                         modalEspText.textContent = (data.serial_connected && data.http_online) ? "En Ligne (USB + Wi-Fi)" : (data.serial_connected ? "En Ligne (Port Série)" : "En Ligne (Wi-Fi)");
                     }
-                    if (usersEspBadge) {
+                    if (data.deviceId) {
+                    activeHardwareDeviceId = data.deviceId;
+                    const cardDevId = document.getElementById('espCardDeviceId');
+                    if (cardDevId) cardDevId.textContent = data.deviceId;
+                    const cardChip = document.getElementById('espCardChipText');
+                    if (cardChip) cardChip.textContent = (data.chip ? data.chip.split(' (')[0] : 'ESP32') + ' • ' + (data.wifi && data.wifi.ip ? data.wifi.ip : data.port);
+                }
+                if (usersEspBadge) {
                         usersEspBadge.className = "text-base font-extrabold text-emerald-500 font-mono mt-0.5 flex items-center space-x-1.5";
-                        usersEspBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span>F2ED08</span>`;
+                        usersEspBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span>${data.deviceId || "ADA960"}</span>`;
                     }
                 } else {
                     if (badge) badge.className = "inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200/80 dark:border-rose-800/80";
@@ -2875,7 +3090,14 @@
                         modalEspDot.className = "w-1.5 h-1.5 rounded-full bg-rose-500";
                         modalEspText.textContent = "Hors Ligne / Déconnecté";
                     }
-                    if (usersEspBadge) {
+                    if (data.deviceId) {
+                    activeHardwareDeviceId = data.deviceId;
+                    const cardDevId = document.getElementById('espCardDeviceId');
+                    if (cardDevId) cardDevId.textContent = data.deviceId;
+                    const cardChip = document.getElementById('espCardChipText');
+                    if (cardChip) cardChip.textContent = (data.chip ? data.chip.split(' (')[0] : 'ESP32') + ' • ' + (data.wifi && data.wifi.ip ? data.wifi.ip : data.port);
+                }
+                if (usersEspBadge) {
                         usersEspBadge.className = "text-base font-extrabold text-slate-400 font-mono mt-0.5 flex items-center space-x-1.5";
                         usersEspBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-500"></span><span>Hors Ligne</span>`;
                     }
@@ -4520,6 +4742,253 @@ Votre module ESP32-S3 (${targetId}) est connecté au Wi-Fi (IP: ${res.ip}) et aj
                 document.getElementById('bleStep3').classList.add('hidden');
                 document.getElementById('bleStep2').classList.remove('hidden');
             }
+        }
+
+    
+        // --- REMOTE CONTROL MODAL CONTROLLER ---
+        let activeRemoteDeviceId = 'ADA960';
+        let activeRemoteDeviceIp = '172.16.50.194';
+        let remoteLedColor = { r: 249, g: 115, b: 22, hex: '#f97316' };
+        let remoteBrightness = 100;
+        let remoteMode = 'solid';
+        let remoteTimerInterval = null;
+
+        async function openDeviceRemoteModal(deviceId) {
+            activeRemoteDeviceId = deviceId || 'ADA960';
+            const mod = (modulesList || []).find(m => m.id === activeRemoteDeviceId);
+            
+            const titleEl = document.getElementById('remoteModalTitle');
+            const badgeEl = document.getElementById('remoteModalIdBadge');
+            const roomEl = document.getElementById('remoteModalRoomText');
+            const ipEl = document.getElementById('remoteDiagIp');
+            const webBtn = document.getElementById('btnRemoteOpenWebServer');
+            const macEl = document.getElementById('remoteDiagMac');
+            
+            if (mod) {
+                if (titleEl) titleEl.textContent = mod.name || `Module ${activeRemoteDeviceId}`;
+                if (badgeEl) badgeEl.textContent = mod.id;
+                if (roomEl) roomEl.textContent = mod.room || 'Salon';
+                activeRemoteDeviceIp = mod.ip || (activeRemoteDeviceId === 'ADA960' ? '172.16.50.194' : '192.168.0.119');
+            } else {
+                if (titleEl) titleEl.textContent = activeRemoteDeviceId === 'ADA960' ? 'Interrupteur ESP32-S3' : `Module ${activeRemoteDeviceId}`;
+                if (badgeEl) badgeEl.textContent = activeRemoteDeviceId;
+                activeRemoteDeviceIp = (activeRemoteDeviceId === 'ADA960' ? '172.16.50.194' : '192.168.0.119');
+            }
+            
+            if (ipEl) {
+                ipEl.textContent = activeRemoteDeviceIp + ' ↗';
+                ipEl.href = 'http://' + activeRemoteDeviceIp;
+            }
+            if (webBtn) {
+                webBtn.href = 'http://' + activeRemoteDeviceIp;
+            }
+            if (macEl && activeRemoteDeviceId === 'ADA960') {
+                macEl.textContent = 'b4:3a:45:ad:a9:60';
+            }
+
+            // Sync relay button
+            syncRemoteRelayUi(mod ? !!mod.relay_state : false);
+
+            // Show Modal
+            document.getElementById('deviceRemoteModal').classList.remove('hidden');
+            lucide.createIcons();
+
+            // Fetch live telemetry from ESP32
+            refreshRemoteTelemetry();
+            checkRemoteTimerStatus();
+        }
+
+        function closeDeviceRemoteModal() {
+            document.getElementById('deviceRemoteModal').classList.add('hidden');
+            if (remoteTimerInterval) clearInterval(remoteTimerInterval);
+        }
+
+        function syncRemoteRelayUi(isOn) {
+            const btn = document.getElementById('btnRemoteRelayToggle');
+            const label = document.getElementById('remoteRelayStateLabel');
+            if (btn) btn.className = isOn ? 'sp-toggle active scale-125 origin-right hover:shadow-lg transition' : 'sp-toggle inactive scale-125 origin-right hover:shadow-lg transition';
+            if (label) {
+                label.textContent = isOn ? 'Allumé (Relais Fermé / 230V)' : 'Éteint (Relais Ouvert / Veille)';
+                label.className = isOn ? 'text-lg sm:text-xl font-extrabold text-orange-500 font-mono mt-0.5' : 'text-lg sm:text-xl font-extrabold text-slate-800 dark:text-white font-mono mt-0.5';
+            }
+        }
+
+        async function toggleRemoteCurrentDevice() {
+            try {
+                const feedback = document.getElementById('remoteLiveFeedback');
+                if (feedback) { feedback.classList.remove('hidden'); setTimeout(() => feedback.classList.add('hidden'), 2000); }
+                const res = await fetch(`/api/modules/${activeRemoteDeviceId}/toggle`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                const data = await res.json();
+                if (data.success && data.relay_state !== undefined) {
+                    syncRemoteRelayUi(data.relay_state);
+                    loadModules();
+                    if (activeRemoteDeviceId === 'ADA960' || activeRemoteDeviceId === 'F2ED08') {
+                        sync3dSceneWithHardware(data.relay_state);
+                    }
+                }
+            } catch(e) {
+                console.error('Erreur commutation:', e);
+            }
+        }
+
+        async function setRemoteLed(r, g, b, label, hex) {
+            remoteLedColor = { r, g, b, hex };
+            const badge = document.getElementById('remoteLedColorBadge');
+            const text = document.getElementById('remoteLedColorText');
+            const picker = document.getElementById('remoteColorInput');
+            const hexText = document.getElementById('remoteCustomColorHex');
+            if (badge) badge.style.backgroundColor = hex;
+            if (text) text.textContent = label;
+            if (picker) picker.value = hex;
+            if (hexText) hexText.textContent = hex.toUpperCase();
+
+            try {
+                await fetch(`/api/modules/${activeRemoteDeviceId}/led`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ r, g, b, mode: remoteMode, brightness: remoteBrightness })
+                });
+            } catch(e) {
+                console.error('Erreur LED:', e);
+            }
+        }
+
+        function onCustomColorPick(hex) {
+            const rgb = hexToRgb(hex);
+            if (rgb) {
+                setRemoteLed(rgb.r, rgb.g, rgb.b, 'Personnalisée', hex);
+            }
+        }
+
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+
+        function onBrightnessChange(val) {
+            remoteBrightness = parseInt(val);
+            const label = document.getElementById('remoteBrightnessVal');
+            if (label) label.textContent = remoteBrightness + '%';
+            if (remoteLedColor) {
+                setRemoteLed(remoteLedColor.r, remoteLedColor.g, remoteLedColor.b, 'Intensité ' + remoteBrightness + '%', remoteLedColor.hex);
+            }
+        }
+
+        function setRemoteLedMode(mode) {
+            remoteMode = mode;
+            ['btnEffectSolid', 'btnEffectBreathe', 'btnEffectStrobe'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.className = 'px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold text-[11px]';
+            });
+            const map = { 'solid': 'btnEffectSolid', 'breathe': 'btnEffectBreathe', 'strobe': 'btnEffectStrobe' };
+            const activeBtn = document.getElementById(map[mode]);
+            if (activeBtn) activeBtn.className = 'px-2.5 py-1 rounded-lg bg-orange-500 text-white font-semibold text-[11px] shadow-xs';
+            if (remoteLedColor) {
+                setRemoteLed(remoteLedColor.r, remoteLedColor.g, remoteLedColor.b, 'Effet ' + mode, remoteLedColor.hex);
+            }
+        }
+
+        async function setRemoteTimer(minutes) {
+            try {
+                const res = await fetch(`/api/modules/${activeRemoteDeviceId}/timer`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ minutes })
+                });
+                const data = await res.json();
+                checkRemoteTimerStatus();
+            } catch(e) {}
+        }
+
+        async function checkRemoteTimerStatus() {
+            try {
+                const res = await fetch(`/api/modules/${activeRemoteDeviceId}/timer`);
+                const data = await res.json();
+                const badge = document.getElementById('remoteTimerActiveBadge');
+                const countdownEl = document.getElementById('remoteTimerCountdown');
+                if (data.active && data.remaining_seconds > 0) {
+                    if (badge) {
+                        badge.classList.remove('hidden');
+                        badge.classList.add('inline-flex');
+                    }
+                    let secs = data.remaining_seconds;
+                    if (countdownEl) {
+                        const m = Math.floor(secs / 60);
+                        const s = secs % 60;
+                        countdownEl.textContent = `${m}:${s < 10 ? '0' : ''}${s}`;
+                    }
+                    if (remoteTimerInterval) clearInterval(remoteTimerInterval);
+                    remoteTimerInterval = setInterval(() => {
+                        secs--;
+                        if (secs <= 0) {
+                            clearInterval(remoteTimerInterval);
+                            if (badge) badge.classList.add('hidden');
+                            syncRemoteRelayUi(false);
+                            loadModules();
+                        } else if (countdownEl) {
+                            const m = Math.floor(secs / 60);
+                            const s = secs % 60;
+                            countdownEl.textContent = `${m}:${s < 10 ? '0' : ''}${s}`;
+                        }
+                    }, 1000);
+                } else {
+                    if (badge) badge.classList.add('hidden');
+                    if (remoteTimerInterval) clearInterval(remoteTimerInterval);
+                }
+            } catch(e) {}
+        }
+
+        async function refreshRemoteTelemetry() {
+            try {
+                const pingEl = document.getElementById('remoteDiagPing');
+                const rssiEl = document.getElementById('remoteDiagRssi');
+                const statusText = document.getElementById('remoteModalStatusText');
+                if (pingEl) pingEl.textContent = '...';
+                const res = await fetch(`/api/modules/${activeRemoteDeviceId}/telemetry`);
+                const data = await res.json();
+                if (data.success) {
+                    if (pingEl) pingEl.textContent = (data.ping_ms || 8.2) + ' ms';
+                    if (rssiEl) rssiEl.textContent = `${data.rssi} dBm (${data.rssi > -65 ? 'Excellent' : 'Bon'})`;
+                    if (statusText) statusText.textContent = data.online ? 'En Ligne (Wi-Fi direct)' : 'Hors Ligne';
+                    if (data.relay_state !== undefined) syncRemoteRelayUi(data.relay_state);
+                }
+            } catch(e) {}
+        }
+
+        async function flashTestRelay() {
+            try {
+                await fetch(`/api/modules/${activeRemoteDeviceId}/toggle`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ state: true }) });
+                syncRemoteRelayUi(true);
+                setTimeout(async () => {
+                    await fetch(`/api/modules/${activeRemoteDeviceId}/toggle`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ state: false }) });
+                    syncRemoteRelayUi(false);
+                    loadModules();
+                }, 2000);
+            } catch(e) {}
+        }
+
+        async function rebootRemoteBoard() {
+            if (!confirm('Voulez-vous vraiment redémarrer la carte ESP32 à distance ?')) return;
+            try {
+                const res = await fetch(`/api/modules/${activeRemoteDeviceId}/reboot`, { method: 'POST' });
+                const data = await res.json();
+                alert(data.message || 'Signal de redémarrage envoyé !');
+            } catch(e) {
+                alert('Erreur envoi commande redémarrage.');
+            }
+        }
+
+        let activeHardwareDeviceId = 'ADA960';
+        function toggleActiveHardware() {
+            toggleModule(activeHardwareDeviceId || 'ADA960');
         }
 
     </script>

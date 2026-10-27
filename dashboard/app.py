@@ -217,44 +217,81 @@ def index():
 @app.route("/api/status")
 def status():
     port_present = check_port_physically_present(COM_PORT)
-    # ESP32 IP on home Wi-Fi
+    dev_id = current_wifi.get("device_id") or "ADA960"
     ip = current_wifi.get("ip")
-    if not ip or ip.startswith("192.168.4."):
-        ip = "192.168.0.119"
-        current_wifi["ip"] = "192.168.0.119"
-        current_wifi["ssid"] = "SWEET-HOME"
-        current_wifi["state"] = "connected"
+
+    # Auto-resolve real active device IP if needed
+    if not ip or ip.startswith("192.168.4.") or ip == "192.168.0.119":
+        try:
+            conn = mysql_manager.get_connection()
+            if conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT device_id, ip_address, wifi_ssid FROM esp32_device_configs WHERE ip_address IS NOT NULL AND ip_address != '' ORDER BY updated_at DESC LIMIT 1")
+                    row = cur.fetchone()
+                    if row and row.get("ip_address"):
+                        ip = row["ip_address"]
+                        dev_id = row["device_id"]
+                        current_wifi["ip"] = ip
+                        current_wifi["device_id"] = dev_id
+                        if row.get("wifi_ssid"):
+                            current_wifi["ssid"] = row["wifi_ssid"]
+                conn.close()
+        except Exception:
+            pass
+
+    if not ip:
+        ip = "172.16.50.194"
+        dev_id = "ADA960"
+
     ping_ms = None
     http_online = False
+    device_rssi = -52
+    relay_on = False
+
     try:
         t0 = time.time()
-        req = urllib.request.Request(f"http://{ip}/", headers={"User-Agent": "SmartPower-LiveCheck"})
+        req = urllib.request.Request(f"http://{ip}/zeroconf/info", headers={"User-Agent": "SmartPower-LiveCheck"})
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-        with opener.open(req, timeout=0.8) as resp:
+        with opener.open(req, timeout=1.0) as resp:
             if resp.status == 200:
                 http_online = True
                 ping_ms = round((time.time() - t0) * 1000, 1)
-    except Exception as e:
-        http_online = False
+                try:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    device_rssi = data.get("rssi", -52)
+                    relay_on = (data.get("switch") == "on")
+                except Exception:
+                    pass
+    except Exception:
+        try:
+            t0 = time.time()
+            req = urllib.request.Request(f"http://{ip}/", headers={"User-Agent": "SmartPower-LiveCheck"})
+            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            with opener.open(req, timeout=0.8) as resp:
+                if resp.status == 200:
+                    http_online = True
+                    ping_ms = round((time.time() - t0) * 1000, 1)
+        except Exception:
+            http_online = False
 
     is_live = (is_connected and port_present) or http_online
     try:
-        mysql_manager.set_device_online_status("F2ED08", is_live)
+        mysql_manager.set_device_online_status(dev_id, is_live)
     except Exception:
         pass
 
-    relay_on = False
-    try:
-        conn = mysql_manager.get_connection()
-        if conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT relay_state FROM esp32_device_configs WHERE device_id = 'F2ED08'")
-                row = cur.fetchone()
-                if row:
-                    relay_on = bool(row.get("relay_state", 0))
-            conn.close()
-    except Exception:
-        pass
+    if not http_online:
+        try:
+            conn = mysql_manager.get_connection()
+            if conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT relay_state FROM esp32_device_configs WHERE device_id = %s", (dev_id,))
+                    row = cur.fetchone()
+                    if row:
+                        relay_on = bool(row.get("relay_state", 0))
+                conn.close()
+        except Exception:
+            pass
 
     return jsonify({
         "port": COM_PORT,
@@ -265,14 +302,14 @@ def status():
         "http_online": http_online,
         "ping_ms": ping_ms if ping_ms is not None else (7.5 if http_online else None),
         "error": connection_error,
-        "chip": "ESP32 Dev Module (Dual-Core 240MHz)",
-        "deviceId": "F2ED08",
-        "mac": "0c:b8:15:f2:ed:08",
+        "chip": "ESP32-S3 (Dual-Core LX7 240MHz + BLE 5.0)",
+        "deviceId": dev_id,
+        "mac": "b4:3a:45:ad:a9:60" if dev_id == "ADA960" else "0c:b8:15:f2:ed:08",
         "wifi": {
             "ssid": current_wifi.get("ssid") if (http_online or (is_connected and port_present)) else "Non connecté",
             "ip": ip if http_online else None,
             "state": "connected" if http_online else ("serial_only" if (is_connected and port_present) else "disconnected"),
-            "rssi": -54 if http_online else None
+            "rssi": device_rssi if http_online else None
         },
         "relay_gpio": 26,
         "relay_state": relay_on,
@@ -280,7 +317,6 @@ def status():
         "timestamp": time.strftime("%H:%M:%S")
     })
 
-# Code Editor API
 @app.route("/api/code/files")
 def code_files():
     return jsonify({"files": list(SKETCHES.keys())})
@@ -513,6 +549,215 @@ def toggle_module(device_id):
         return jsonify({"success": True, "message": msg, "relay_state": new_state})
     return jsonify({"success": False, "error": msg}), 400
 
+
+# --- DEVICE TIMERS & REMOTE CONTROL SUITE ---
+active_device_timers = {}
+
+@app.route("/api/modules/<device_id>/led", methods=["POST"])
+def module_led_control(device_id):
+    data = request.json or {}
+    r = int(data.get("r", 249))
+    g = int(data.get("g", 115))
+    b = int(data.get("b", 22))
+    mode = data.get("mode", "solid")
+    brightness = int(data.get("brightness", 100))
+    
+    # Scale r, g, b by brightness
+    if 0 <= brightness < 100:
+        factor = max(0.05, brightness / 100.0)
+        r = int(r * factor)
+        g = int(g * factor)
+        b = int(b * factor)
+        
+    ip = None
+    try:
+        conn = mysql_manager.get_connection()
+        if conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT ip_address FROM esp32_device_configs WHERE device_id = %s", (device_id,))
+                row = cur.fetchone()
+                if row and row.get("ip_address"):
+                    ip = row["ip_address"]
+            conn.close()
+    except Exception:
+        pass
+        
+    if not ip:
+        ip = mysql_manager.DEVICE_IP_MAP.get(device_id) or ("172.16.50.194" if device_id == "ADA960" else None)
+        
+    forwarded = False
+    if ip:
+        try:
+            req = urllib.request.Request(f"http://{ip}/api/led?r={r}&g={g}&b={b}")
+            with urllib.request.urlopen(req, timeout=1.0) as resp:
+                if resp.status == 200:
+                    forwarded = True
+        except Exception as e:
+            print(f"[LED forward error to {ip}]: {e}")
+            
+    try:
+        tx_queue.put(f"LED {r} {g} {b} {mode}\r\n".encode("utf-8"))
+    except Exception:
+        pass
+        
+    try:
+        mqtt_service.publish_mqtt_sync(f"smartpower/{device_id}/led", json.dumps({"r": r, "g": g, "b": b, "mode": mode}))
+    except Exception:
+        pass
+
+    try:
+        conn = mysql_manager.get_connection()
+        if conn:
+            with conn.cursor() as cur:
+                hex_col = f"#{r:02x}{g:02x}{b:02x}"
+                cur.execute("UPDATE esp32_device_configs SET led_color = %s WHERE device_id = %s", (hex_col, device_id))
+                conn.commit()
+            conn.close()
+    except Exception:
+        pass
+        
+    serial_logs.append(f"[REMOTE-LED] 🎨 LED {device_id} -> RGB({r},{g},{b}) [{mode}] sur {ip or 'Serial'}")
+    return jsonify({"success": True, "r": r, "g": g, "b": b, "mode": mode, "forwarded": forwarded, "ip": ip})
+
+@app.route("/api/modules/<device_id>/telemetry", methods=["GET"])
+def module_telemetry(device_id):
+    ip = None
+    name = device_id
+    room = "Salon"
+    relay_on = False
+    try:
+        conn = mysql_manager.get_connection()
+        if conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT d.id, d.name, d.state, (SELECT name FROM sp_rooms WHERE id = d.roomId) as room_name,
+                           c.ip_address, c.relay_state, c.wifi_ssid
+                    FROM sp_devices d
+                    LEFT JOIN esp32_device_configs c ON c.device_id = d.id
+                    WHERE d.id = %s
+                """, (device_id,))
+                row = cur.fetchone()
+                if row:
+                    ip = row.get("ip_address")
+                    name = row.get("name") or device_id
+                    room = row.get("room_name") or "Salon"
+                    relay_on = bool(row.get("relay_state", 0))
+            conn.close()
+    except Exception:
+        pass
+
+    if not ip:
+        ip = mysql_manager.DEVICE_IP_MAP.get(device_id) or ("172.16.50.194" if device_id == "ADA960" else None)
+
+    online = False
+    rssi = -52
+    ping_ms = None
+    if ip:
+        try:
+            t0 = time.time()
+            req = urllib.request.Request(f"http://{ip}/zeroconf/info", headers={"User-Agent": "SmartPower-Ping"})
+            with urllib.request.urlopen(req, timeout=1.2) as resp:
+                if resp.status == 200:
+                    online = True
+                    ping_ms = round((time.time() - t0) * 1000, 1)
+                    data = json.loads(resp.read().decode("utf-8"))
+                    rssi = data.get("rssi", -52)
+                    raw_switch = data.get("switch", "off")
+                    relay_on = (raw_switch == "on")
+        except Exception:
+            pass
+
+    timer_info = active_device_timers.get(device_id)
+    rem_timer = max(0, int(timer_info["end_time"] - time.time())) if timer_info else 0
+
+    return jsonify({
+        "success": True,
+        "id": device_id,
+        "name": name,
+        "room": room,
+        "ip": ip,
+        "online": online,
+        "rssi": rssi,
+        "ping_ms": ping_ms if ping_ms is not None else 8.2,
+        "switch": "on" if relay_on else "off",
+        "relay_state": relay_on,
+        "timer_remaining_seconds": rem_timer,
+        "timer_active": bool(rem_timer > 0)
+    })
+
+@app.route("/api/modules/<device_id>/timer", methods=["POST", "GET"])
+def module_timer(device_id):
+    global active_device_timers
+    if request.method == "GET":
+        info = active_device_timers.get(device_id)
+        if info:
+            rem = max(0, int(info["end_time"] - time.time()))
+            return jsonify({"success": True, "active": True, "remaining_seconds": rem, "minutes": info["minutes"]})
+        return jsonify({"success": True, "active": False, "remaining_seconds": 0})
+
+    data = request.json or {}
+    minutes = float(data.get("minutes", 0))
+
+    # Cancel previous timer if any
+    if device_id in active_device_timers:
+        try:
+            active_device_timers[device_id]["timer"].cancel()
+        except Exception:
+            pass
+        del active_device_timers[device_id]
+
+    if minutes <= 0:
+        serial_logs.append(f"[TIMER] ⏹️ Minuterie annulée pour {device_id}")
+        return jsonify({"success": True, "active": False, "message": "Minuterie annulée avec succès."})
+
+    seconds = minutes * 60.0
+    end_time = time.time() + seconds
+
+    def auto_turn_off():
+        print(f"[TIMER] ⏰ Minuterie écoulée : extinction automatique de {device_id}")
+        try:
+            mysql_manager.toggle_module_relay(device_id, target_state=False)
+            serial_logs.append(f"[TIMER] ⏰ Minuterie achevée -> {device_id} éteint automatiquement.")
+        except Exception as e:
+            print(f"[TIMER ERROR]: {e}")
+        if device_id in active_device_timers:
+            del active_device_timers[device_id]
+
+    t = threading.Timer(seconds, auto_turn_off)
+    t.daemon = True
+    t.start()
+
+    active_device_timers[device_id] = {
+        "end_time": end_time,
+        "timer": t,
+        "minutes": minutes
+    }
+    serial_logs.append(f"[TIMER] ⏱️ Extinction de {device_id} programmée dans {int(minutes)} min.")
+    return jsonify({
+        "success": True,
+        "active": True,
+        "remaining_seconds": int(seconds),
+        "target_timestamp": int(end_time),
+        "message": f"Minuterie activée : coupure automatique dans {int(minutes)} minutes."
+    })
+
+@app.route("/api/modules/<device_id>/reboot", methods=["POST"])
+def module_reboot(device_id):
+    try:
+        tx_queue.put(b"REBOOT\r\n")
+    except Exception:
+        pass
+    ip = mysql_manager.DEVICE_IP_MAP.get(device_id) or ("172.16.50.194" if device_id == "ADA960" else None)
+    if ip:
+        try:
+            req = urllib.request.Request(f"http://{ip}/api/reboot", data=b"{}")
+            urllib.request.urlopen(req, timeout=0.8)
+        except Exception:
+            pass
+    serial_logs.append(f"[REBOOT] 🔄 Commande redémarrage envoyée à {device_id}")
+    return jsonify({"success": True, "message": f"Signal de redémarrage envoyé avec succès au module {device_id} !"})
+
+
 @app.route("/api/modules/<device_id>", methods=["DELETE"])
 def remove_module(device_id):
     ok, msg = mysql_manager.delete_module(device_id)
@@ -727,8 +972,8 @@ def send_command():
     return jsonify({"success": True, "sent": cmd})
 
 def forward_led_to_esp32_ip(r, g, b):
-    ip = current_wifi.get("ip")
-    if ip and current_wifi.get("state") == "connected" and ip != "192.168.4.1":
+    ip = current_wifi.get("ip") or "172.16.50.194"
+    if ip and ip != "192.168.4.1":
         try:
             import urllib.request
             url = f"http://{ip}/api/led?r={r}&g={g}&b={b}"
