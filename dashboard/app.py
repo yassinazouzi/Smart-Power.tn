@@ -477,6 +477,18 @@ def add_module():
         return jsonify({"success": True, "module": res})
     return jsonify({"success": False, "error": str(res)}), 400
 
+@app.route("/api/modules/register", methods=["POST"])
+def register_ble_module():
+    data = request.json or {}
+    ok, res = mysql_manager.add_new_module(data)
+    if ok:
+        dev_id = res.get("id") if isinstance(res, dict) else data.get("id")
+        name = res.get("name") if isinstance(res, dict) else data.get("name", dev_id)
+        room = res.get("room") if isinstance(res, dict) else data.get("room", "Salon")
+        serial_logs.append(f"[BLE-PROVISION] 🎉 Objet sans fil '{name}' ({dev_id}) associé avec succès dans {room} !")
+        return jsonify({"success": True, "module": res})
+    return jsonify({"success": False, "error": str(res)}), 400
+
 @app.route("/api/modules/<device_id>/toggle", methods=["POST"])
 def toggle_module(device_id):
     data = request.json or {}

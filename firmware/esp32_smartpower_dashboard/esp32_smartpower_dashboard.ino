@@ -18,6 +18,15 @@
 #include <Preferences.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
+#include <BLEDevice.h>
+#include <BLEServer.h>
+#include <BLEUtils.h>
+#include <BLE2902.h>
+
+// UUIDs BLE SmartPower Provisioning
+#define BLE_SERVICE_UUID         "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
+#define BLE_CHAR_WIFI_WRITE_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+#define BLE_CHAR_STATUS_UUID     "1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e" 
 
 // Définitions matérielles
 #define BUTTON_PIN      0     // Bouton BOOT physique sur la carte ESP32
@@ -282,8 +291,105 @@ void connectMqtt() {
     }
 }
 
+
+// Objets BLE
+BLEServer *pBleServer = NULL;
+BLECharacteristic *pBleStatusChar = NULL;
+bool bleActive = false;
+
+class WifiBleCallbacks: public BLECharacteristicCallbacks {
+    void onWrite(BLECharacteristic *pCharacteristic) {
+        String jsonStr = pCharacteristic->getValue().c_str();
+        jsonStr.trim();
+        Serial.printf("[BLE] 📩 Identifiants reçus via Bluetooth: %s\n", jsonStr.c_str());
+        DynamicJsonDocument doc(256);
+        DeserializationError err = deserializeJson(doc, jsonStr);
+        if (!err) {
+            const char* s = doc["ssid"];
+            const char* p = doc["pass"];
+            if (s && strlen(s) > 0) {
+                wifiSsid = String(s);
+                wifiPass = p ? String(p) : "";
+                prefs.putString("ssid", wifiSsid);
+                prefs.putString("pass", wifiPass);
+
+                if (pBleStatusChar) {
+                    pBleStatusChar->setValue("{\"status\":\"connecting\"}");
+                    pBleStatusChar->notify();
+                }
+
+                WiFi.disconnect();
+                WiFi.mode(WIFI_STA);
+                WiFi.begin(wifiSsid.c_str(), wifiPass.c_str());
+
+                int t = 0;
+                while (WiFi.status() != WL_CONNECTED && t < 25) {
+                    delay(400);
+                    Serial.print(".");
+                    t++;
+                }
+                Serial.println();
+
+                if (WiFi.status() == WL_CONNECTED) {
+                    String ipStr = WiFi.localIP().toString();
+                    Serial.printf("[BLE] ✅ Connecté au Wi-Fi ! IP: %s\n", ipStr.c_str());
+                    setRgbColor(0, 50, 0); // Vert
+                    isApMode = false;
+                    String resp = "{\"status\":\"ok\",\"ip\":\"" + ipStr + "\",\"id\":\"" + deviceId + "\",\"mac\":\"" + WiFi.macAddress() + "\"}";
+                    if (pBleStatusChar) {
+                        pBleStatusChar->setValue(resp.c_str());
+                        pBleStatusChar->notify();
+                    }
+                    delay(1200);
+                } else {
+                    Serial.println("[BLE] ❌ Échec de connexion au Wi-Fi.");
+                    if (pBleStatusChar) {
+                        pBleStatusChar->setValue("{\"status\":\"error\",\"msg\":\"Mot de passe incorrect ou reseau introuvable\"}");
+                        pBleStatusChar->notify();
+                    }
+                }
+            }
+        }
+    }
+};
+
+void startBleProvisioning() {
+    String bleName = "SmartPower-S3-" + deviceId;
+    BLEDevice::init(bleName.c_str());
+    pBleServer = BLEDevice::createServer();
+    BLEService *pService = pBleServer->createService(BLE_SERVICE_UUID);
+
+    BLECharacteristic *pWifiChar = pService->createCharacteristic(
+        BLE_CHAR_WIFI_WRITE_UUID,
+        BLECharacteristic::PROPERTY_WRITE
+    );
+    pWifiChar->setCallbacks(new WifiBleCallbacks());
+
+    pBleStatusChar = pService->createCharacteristic(
+        BLE_CHAR_STATUS_UUID,
+        BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY
+    );
+    pBleStatusChar->addDescriptor(new BLE2902());
+
+    pService->start();
+    BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
+    pAdvertising->addServiceUUID(BLE_SERVICE_UUID);
+    pAdvertising->setScanResponse(true);
+    pAdvertising->setMinPreferred(0x06);
+    BLEDevice::startAdvertising();
+    bleActive = true;
+    Serial.printf("[BLE] 📱 Mode Appairage Bluetooth actif : '%s'\n", bleName.c_str());
+}
+
 void setup() {
     Serial.begin(115200);
+    // Calcul dynamique de l'identifiant matériel depuis l'adresse MAC
+    uint8_t macBytes[6];
+    WiFi.macAddress(macBytes);
+    char bufId[7];
+    snprintf(bufId, sizeof(bufId), "%02X%02X%02X", macBytes[3], macBytes[4], macBytes[5]);
+    deviceId = String(bufId);
+
     pinMode(BUTTON_PIN, INPUT_PULLUP); // Bouton BOOT physique
     pinMode(RGB_PIN, OUTPUT);
     pinMode(RELAY_PIN, OUTPUT);
@@ -323,6 +429,7 @@ void setup() {
     } else {
         Serial.println("Activation du mode Point d'acces (Portail Captif)...");
         isApMode = true;
+        startBleProvisioning();
         WiFi.mode(WIFI_AP_STA);
         String apName = "ESP32-RGB-" + deviceId;
         WiFi.softAP(apName.c_str());

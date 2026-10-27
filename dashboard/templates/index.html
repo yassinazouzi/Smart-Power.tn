@@ -208,6 +208,12 @@
                     <span>Scanner Wi-Fi</span>
                 </button>
 
+                <!-- BLE Bluetooth Button -->
+                <button onclick="openBleModal()" class="flex items-center space-x-1 sm:space-x-1.5 px-3 py-1.5 sm:px-3.5 sm:py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition active:scale-95 shadow-sm shadow-blue-600/30" title="Associer un ESP32 sans fil via Bluetooth Low Energy (BLE)">
+                    <i data-lucide="bluetooth" class="w-4 h-4"></i>
+                    <span>Appairer BLE</span>
+                </button>
+
                 <!-- + Ajouter Button -->
                 <button onclick="openClientClaimWizard()" class="flex items-center space-x-1 sm:space-x-1.5 px-3 py-1.5 sm:px-3.5 sm:py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold shadow-sm transition active:scale-95">
                     <i data-lucide="plus" class="w-4 h-4"></i>
@@ -1386,10 +1392,16 @@
                         </span>
                         <span class="text-xs font-bold text-slate-800 dark:text-white">Recherche à proximité</span>
                     </div>
-                    <button type="button" onclick="scanNearbyDevices()" id="btnScanNearby" class="flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-semibold transition active:scale-95 shadow-xs">
-                        <i data-lucide="radio" class="w-3.5 h-3.5"></i>
-                        <span>Scanner (Wi-Fi)</span>
-                    </button>
+                    <div class="flex items-center space-x-1.5">
+                        <button type="button" onclick="scanNearbyDevices()" id="btnScanNearby" class="flex items-center space-x-1 px-2.5 py-1 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-[11px] font-semibold transition active:scale-95 shadow-xs">
+                            <i data-lucide="radio" class="w-3.5 h-3.5"></i>
+                            <span>Scan Wi-Fi</span>
+                        </button>
+                        <button type="button" onclick="closeClientClaimModal(); openBleModal();" class="flex items-center space-x-1 px-2.5 py-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-semibold transition active:scale-95 shadow-xs" title="Appairer via Bluetooth Low Energy">
+                            <i data-lucide="bluetooth" class="w-3.5 h-3.5"></i>
+                            <span>Scan BLE</span>
+                        </button>
+                    </div>
                 </div>
 
                 <div id="nearbyDevicesContainer" class="hidden space-y-2 pt-1">
@@ -1449,6 +1461,112 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- MODAL BLE: APPAIRAGE SANS-FIL BLUETOOTH LOW ENERGY (WEB BLUETOOTH) -->
+    <div id="bleProvisionModal" onclick="if(event.target === this) closeBleModal()" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-3 sm:p-4">
+        <div class="bg-white dark:bg-slate-800 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4 animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <!-- Mobile Handle -->
+            <div class="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto mb-2 sm:hidden shrink-0"></div>
+
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
+                <div class="flex items-center space-x-2.5">
+                    <div class="p-2 rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
+                        <i data-lucide="bluetooth" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900 dark:text-white">Appairage Sans-Fil Bluetooth (BLE)</h3>
+                        <p class="text-xs text-slate-400">Injectez le Wi-Fi et associez votre ESP32 sans aucun câble</p>
+                    </div>
+                </div>
+                <button onclick="closeBleModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Warning if Web Bluetooth not supported -->
+            <div id="bleNotSupportedAlert" class="hidden p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs flex items-start space-x-2">
+                <i data-lucide="alert-triangle" class="w-4 h-4 shrink-0 mt-0.5"></i>
+                <span>Le protocole <strong>Web Bluetooth</strong> nécessite Google Chrome ou Microsoft Edge (sur PC ou Android).</span>
+            </div>
+
+            <!-- Étape 1 : Détection BLE -->
+            <div id="bleStep1" class="space-y-3">
+                <div class="p-4 rounded-2xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/40 text-center space-y-2">
+                    <div class="relative inline-flex p-3 rounded-full bg-blue-600 text-white shadow-lg shadow-blue-500/30">
+                        <i data-lucide="bluetooth-searching" class="w-6 h-6 animate-pulse"></i>
+                    </div>
+                    <div class="text-xs font-bold text-slate-800 dark:text-white">Préparez votre carte ESP32</div>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 max-w-xs mx-auto">
+                        Alimentez simplement votre ESP32 sur un chargeur USB ou une prise. La carte émet son signal Bluetooth <strong>SmartPower-S3-...</strong>.
+                    </p>
+                </div>
+
+                <button type="button" onclick="startBleScanAndConnect()" id="btnStartBleScan" class="w-full flex items-center justify-center space-x-2 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-md shadow-blue-500/25 active:scale-98 cursor-pointer">
+                    <i data-lucide="bluetooth" class="w-4 h-4"></i>
+                    <span>Scanner & Connecter en Bluetooth</span>
+                </button>
+            </div>
+
+            <!-- Étape 2 : Formulaire Wi-Fi & Enregistrement -->
+            <div id="bleStep2" class="hidden space-y-3">
+                <div class="flex items-center justify-between p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs">
+                    <div class="flex items-center space-x-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span class="font-bold" id="bleConnectedDevName">SmartPower-S3-ADA960</span>
+                    </div>
+                    <span class="text-[10px] bg-emerald-200 dark:bg-emerald-900/60 px-2 py-0.5 rounded-full font-mono font-bold">BLE Connecté</span>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">Nom du réseau Wi-Fi (SSID 2.4 GHz)</label>
+                    <input type="text" id="bleWifiSsidInput" placeholder="Ex: adminbadira ou SWEET-HOME" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs font-mono font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">Mot de passe du Wi-Fi</label>
+                    <div class="relative">
+                        <input type="password" id="bleWifiPassInput" placeholder="••••••••" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs font-mono text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10">
+                        <button type="button" onclick="toggleBlePassVisibility()" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer">
+                            <i data-lucide="eye" id="blePassEyeIcon" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">Nom de l'appareil</label>
+                        <input type="text" id="bleDevNameInput" value="Interrupteur ESP32-S3" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">Pièce</label>
+                        <select id="bleDevRoomSelect" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="Salon" selected>🛋️ Salon</option>
+                            <option value="Chambre">🛏️ Chambre</option>
+                            <option value="Cuisine">🍳 Cuisine</option>
+                            <option value="Bureau">💻 Bureau</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button type="button" onclick="sendBleWifiAndRegister()" id="btnSendBleConfig" class="w-full flex items-center justify-center space-x-2 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold transition shadow-lg shadow-blue-500/25 active:scale-98 cursor-pointer">
+                    <i data-lucide="send" class="w-4 h-4"></i>
+                    <span>⚡ Injecter le Wi-Fi & Associer au Dashboard</span>
+                </button>
+            </div>
+
+            <!-- Étape 3 : Statut en Direct -->
+            <div id="bleStep3" class="hidden space-y-3 text-center py-4">
+                <div class="relative inline-flex">
+                    <span id="bleStatusPulse" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                    <div id="bleStatusIconBg" class="relative inline-flex p-4 rounded-full bg-blue-600 text-white">
+                        <i data-lucide="loader-2" id="bleStatusIcon" class="w-6 h-6 animate-spin"></i>
+                    </div>
+                </div>
+                <div class="text-xs font-bold text-slate-800 dark:text-white" id="bleStatusTitle">Injection en cours...</div>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400" id="bleStatusDesc">Envoi des paramètres Wi-Fi à la carte via Bluetooth...</p>
+            </div>
         </div>
     </div>
 
@@ -4169,6 +4287,194 @@
         setInterval(loadModules, 3500);
         setInterval(updateHardwareStatus, 2500);
         setInterval(updateLogs, 1500);
+    
+        // =========================================================================
+        // WEB BLUETOOTH (BLE) PROVISIONING SYSTEM
+        // =========================================================================
+        const BLE_SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+        const BLE_CHAR_WIFI_WRITE = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+        const BLE_CHAR_STATUS = "1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e";
+
+        let bleActiveDevice = null;
+        let bleWifiChar = null;
+        let bleStatusChar = null;
+        let bleDetectedId = "";
+
+        function openBleModal() {
+            document.getElementById('bleProvisionModal').classList.remove('hidden');
+            document.getElementById('bleStep1').classList.remove('hidden');
+            document.getElementById('bleStep2').classList.add('hidden');
+            document.getElementById('bleStep3').classList.add('hidden');
+            
+            // Check Web Bluetooth support
+            if (!navigator.bluetooth) {
+                document.getElementById('bleNotSupportedAlert').classList.remove('hidden');
+            } else {
+                document.getElementById('bleNotSupportedAlert').classList.add('hidden');
+            }
+            lucide.createIcons();
+        }
+
+        function closeBleModal() {
+            document.getElementById('bleProvisionModal').classList.add('hidden');
+            if (bleActiveDevice && bleActiveDevice.gatt.connected) {
+                bleActiveDevice.gatt.disconnect();
+            }
+            bleActiveDevice = null;
+        }
+
+        function toggleBlePassVisibility() {
+            const inp = document.getElementById('bleWifiPassInput');
+            const icon = document.getElementById('blePassEyeIcon');
+            if (inp.type === 'password') {
+                inp.type = 'text';
+                icon.setAttribute('data-lucide', 'eye-off');
+            } else {
+                inp.type = 'password';
+                icon.setAttribute('data-lucide', 'eye');
+            }
+            lucide.createIcons();
+        }
+
+        async function startBleScanAndConnect() {
+            if (!navigator.bluetooth) {
+                alert("Votre navigateur ne supporte pas le Web Bluetooth. Veuillez utiliser Google Chrome ou Microsoft Edge.");
+                return;
+            }
+
+            const btn = document.getElementById('btnStartBleScan');
+            const origHtml = btn.innerHTML;
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Scan en cours...</span>`;
+            lucide.createIcons();
+
+            try {
+                // Request BLE device advertising with prefix SmartPower- or all devices
+                bleActiveDevice = await navigator.bluetooth.requestDevice({
+                    filters: [{ namePrefix: 'SmartPower-' }],
+                    optionalServices: [BLE_SERVICE_UUID]
+                });
+
+                document.getElementById('bleConnectedDevName').textContent = bleActiveDevice.name || "ESP32-S3 Connecté";
+                
+                // Extract Device ID if present in name (SmartPower-S3-ADA960)
+                const parts = (bleActiveDevice.name || "").split('-');
+                bleDetectedId = parts.length >= 3 ? parts[parts.length - 1] : ("S3_" + Math.random().toString(36).substring(2, 8).toUpperCase());
+
+                // Connect to GATT
+                const server = await bleActiveDevice.gatt.connect();
+                const service = await server.getPrimaryService(BLE_SERVICE_UUID);
+                bleWifiChar = await service.getCharacteristic(BLE_CHAR_WIFI_WRITE);
+                bleStatusChar = await service.getCharacteristic(BLE_CHAR_STATUS);
+
+                // Pre-fill Wi-Fi SSID if known from current dashboard state
+                if (typeof currentSsid !== 'undefined' && currentSsid) {
+                    document.getElementById('bleWifiSsidInput').value = currentSsid;
+                } else {
+                    document.getElementById('bleWifiSsidInput').value = "adminbadira";
+                }
+
+                // Switch to Step 2
+                document.getElementById('bleStep1').classList.add('hidden');
+                document.getElementById('bleStep2').classList.remove('hidden');
+                lucide.createIcons();
+
+            } catch (err) {
+                if (err.name !== 'NotFoundError') { // Not user cancel
+                    alert("Erreur de connexion Bluetooth : " + err.message);
+                }
+            } finally {
+                btn.innerHTML = origHtml;
+                lucide.createIcons();
+            }
+        }
+
+        async function sendBleWifiAndRegister() {
+            const ssid = document.getElementById('bleWifiSsidInput').value.trim();
+            const pass = document.getElementById('bleWifiPassInput').value;
+            const devName = document.getElementById('bleDevNameInput').value.trim() || ("ESP32-S3 " + bleDetectedId);
+            const room = document.getElementById('bleDevRoomSelect').value;
+
+            if (!ssid) {
+                alert("Veuillez saisir le nom de votre réseau Wi-Fi (SSID) !");
+                return;
+            }
+
+            // Switch to Step 3
+            document.getElementById('bleStep2').classList.add('hidden');
+            document.getElementById('bleStep3').classList.remove('hidden');
+            document.getElementById('bleStatusTitle').textContent = "Injection Wi-Fi...";
+            document.getElementById('bleStatusDesc').textContent = `Transmission des identifiants Wi-Fi à l'ESP32 via Bluetooth...`;
+            lucide.createIcons();
+
+            try {
+                // Listen for status notification
+                await bleStatusChar.startNotifications();
+                bleStatusChar.addEventListener('characteristicvaluechanged', async (event) => {
+                    const raw = new TextDecoder().decode(event.target.value);
+                    console.log("[BLE-NOTIF]", raw);
+                    try {
+                        const res = JSON.parse(raw);
+                        if (res.status === 'connecting') {
+                            document.getElementById('bleStatusTitle').textContent = "Connexion Wi-Fi de l'ESP32...";
+                            document.getElementById('bleStatusDesc').textContent = `L'ESP32-S3 tente de s'associer au réseau Wi-Fi '${ssid}'...`;
+                        } else if (res.status === 'ok') {
+                            document.getElementById('bleStatusTitle').textContent = "🎉 Connecté au Wi-Fi !";
+                            document.getElementById('bleStatusDesc').textContent = `Adresse IP locale : ${res.ip} • Enregistrement dans le tableau de bord...`;
+                            
+                            // Auto register into MySQL dashboard
+                            const targetId = res.id || bleDetectedId;
+                            try {
+                                await fetch('/api/modules/register', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        id: targetId,
+                                        name: devName,
+                                        room: room,
+                                        type: 'SWITCH',
+                                        model: 'SP-SW1-S3',
+                                        ip: res.ip,
+                                        home_id: currentHomeId
+                                    })
+                                });
+                            } catch(e) {
+                                console.warn("Auto-register notice:", e);
+                            }
+
+                            setTimeout(() => {
+                                alert(`🎉 Succès !
+
+Votre module ESP32-S3 (${targetId}) est connecté au Wi-Fi (IP: ${res.ip}) et ajouté avec succès à votre maison dans la pièce '${room}' !`);
+                                closeBleModal();
+                                loadModules();
+                            }, 1200);
+
+                        } else if (res.status === 'error') {
+                            document.getElementById('bleStatusTitle').textContent = "❌ Échec de connexion";
+                            document.getElementById('bleStatusDesc').textContent = res.msg || "Vérifiez le mot de passe Wi-Fi.";
+                            setTimeout(() => {
+                                document.getElementById('bleStep3').classList.add('hidden');
+                                document.getElementById('bleStep2').classList.remove('hidden');
+                            }, 2500);
+                        }
+                    } catch(pe) {
+                        console.error("JSON parse error from BLE:", pe);
+                    }
+                });
+
+                // Write Wi-Fi credentials JSON over BLE
+                const payload = JSON.stringify({ ssid: ssid, pass: pass });
+                await bleWifiChar.writeValue(new TextEncoder().encode(payload));
+                document.getElementById('bleStatusTitle').textContent = "Identifiants transmis !";
+                document.getElementById('bleStatusDesc').textContent = "En attente de la validation de connexion par la carte...";
+
+            } catch (err) {
+                alert("Erreur lors de l'injection BLE : " + err.message);
+                document.getElementById('bleStep3').classList.add('hidden');
+                document.getElementById('bleStep2').classList.remove('hidden');
+            }
+        }
+
     </script>
 </body>
 </html>
