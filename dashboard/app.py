@@ -531,21 +531,96 @@ def register_ble_module():
         return jsonify({"success": True, "module": res})
     return jsonify({"success": False, "error": str(res)}), 400
 
+
+def forward_command_to_sonoff(device_id, state):
+    """
+    Envoie l'ordre de commutation au module Sonoff physique via HTTP REST (DIY Mode port 8081)
+    ou protocole Tasmota / Web (port 80) dès que son adresse IP locale est résolue.
+    """
+    sonoff_ip = None
+    try:
+        conn = mysql_manager.get_connection()
+        if conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT ip_address FROM esp32_device_configs WHERE device_id = %s", (device_id,))
+                row = cur.fetchone()
+                if row and row.get("ip_address"):
+                    sonoff_ip = row["ip_address"]
+            conn.close()
+    except Exception:
+        pass
+
+    if not sonoff_ip:
+        # Scanner automatiquement les IP du sous-réseau local pour détecter l'IP du Sonoff
+        try:
+            for ip_cand in ["172.16.50.160", "172.16.50.207", "172.16.50.60", "172.16.50.61"]:
+                try:
+                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    s.settimeout(0.3)
+                    if s.connect_ex((ip_cand, 8081)) == 0 or s.connect_ex((ip_cand, 80)) == 0:
+                        sonoff_ip = ip_cand
+                        s.close()
+                        break
+                    s.close()
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    if not sonoff_ip:
+        return
+
+    # 1. Envoi REST DIY Mode Sonoff (port 8081 zeroconf)
+    try:
+        url = f"http://{sonoff_ip}:8081/zeroconf/switch"
+        payload = json.dumps({"deviceid": device_id, "data": {"switch": "on" if state else "off"}}).encode("utf-8")
+        req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        with opener.open(req, timeout=1.2) as resp:
+            if resp.status == 200:
+                serial_logs.append(f"[SONOFF-DIY] ⚡ Relais physique commuté via LAN sur {sonoff_ip}:8081")
+                return
+    except Exception:
+        pass
+
+    # 2. Envoi HTTP standard (port 80)
+    try:
+        url = f"http://{sonoff_ip}/cm?cmnd=Power%20{'ON' if state else 'OFF'}"
+        req = urllib.request.Request(url)
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        with opener.open(req, timeout=1.0) as resp:
+            if resp.status == 200:
+                serial_logs.append(f"[SONOFF-HTTP] ⚡ Relais commuté via HTTP sur {sonoff_ip}")
+    except Exception:
+        pass
+
 @app.route("/api/modules/<device_id>/toggle", methods=["POST"])
 def toggle_module(device_id):
-    data = request.json or {}
+    data = request.get_json(silent=True) or request.form.to_dict() or {}
     target_state = data.get("state")
     ok, msg, new_state = mysql_manager.toggle_module_relay(device_id, target_state)
     if ok:
-        if device_id == "F2ED08":
+        # Commande physique ESP32 (Série COM + HTTP)
+        if device_id in ("F2ED08", "ADA960"):
             cmd = f"RELAY {1 if new_state else 0}\r\n"
             tx_queue.put(cmd.encode("utf-8"))
-            # Reflect on physical RGB LED on the real ESP32 board
             r, g, b = (249, 115, 22) if new_state else (20, 30, 45)
             threading.Thread(target=forward_led_to_esp32_ip, args=(r, g, b), daemon=True).start()
-        # Publish over local MQTT Broker
+
+        # Commande physique Sonoff (Wi-Fi LAN DIY / HTTP)
+        if "sonoff" in device_id.lower():
+            threading.Thread(target=forward_command_to_sonoff, args=(device_id, new_state), daemon=True).start()
+
+        # Publication MQTT (topics standard SmartPower + Sonoff)
         mqtt_service.publish_device_command(device_id, new_state)
-        serial_logs.append(f"[RELAY] ⚡ Module {device_id} commuté -> {'ON' if new_state else 'OFF'}")
+        try:
+            mqtt_service.publish(f"cmnd/{device_id}/POWER", "ON" if new_state else "OFF")
+            mqtt_service.publish(f"sonoff/{device_id}/set", json.dumps({"switch": "on" if new_state else "off"}))
+        except Exception:
+            pass
+
+        tag = "[SONOFF]" if "sonoff" in device_id.lower() else "[RELAY]"
+        serial_logs.append(f"{tag} ⚡ Module {device_id} commuté -> {'ON' if new_state else 'OFF'}")
         return jsonify({"success": True, "message": msg, "relay_state": new_state})
     return jsonify({"success": False, "error": msg}), 400
 
