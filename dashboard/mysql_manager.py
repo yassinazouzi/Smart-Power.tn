@@ -731,7 +731,7 @@ def toggle_module_relay(device_id, target_state=None):
         if ip_addr:
             try:
                 url = f"http://{ip_addr}/zeroconf/switch"
-                payload = json.dumps({"data": {"switch": str_new}}).encode("utf-8")
+                payload = json.dumps({"switch": str_new, "data": {"switch": str_new}}).encode("utf-8")
                 req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
                 urllib.request.urlopen(req, timeout=0.6)
             except Exception:
@@ -740,6 +740,12 @@ def toggle_module_relay(device_id, target_state=None):
                     urllib.request.urlopen(url2, timeout=0.5)
                 except Exception:
                     pass
+            # Synchroniser la LED RGB physique sur la carte en temps réel
+            try:
+                r, g, b = (249, 115, 22) if new_switch else (0, 15, 30)
+                urllib.request.urlopen(f"http://{ip_addr}/api/led?r={r}&g={g}&b={b}", timeout=0.5)
+            except Exception:
+                pass
 
         return True, f"Relais {str_new.upper()}", new_switch
     except Exception as e:
