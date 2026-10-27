@@ -1413,8 +1413,11 @@
                     </label>
                     <div class="flex space-x-2">
                         <input type="text" id="claimCodeInput" required placeholder="Ex: F2ED08CL ou F2ED08" class="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs font-mono font-bold uppercase focus:outline-none focus:ring-2 focus:ring-orange-500">
-                        <button type="button" onclick="fillTestClaimCode()" class="px-2.5 py-2 rounded-xl bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300 text-xs font-mono font-semibold">
-                            F2ED08
+                        <button type="button" onclick="fillTestClaimCode()" class="px-2.5 py-2 rounded-xl bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300 text-xs font-mono font-semibold" title="Remplir module ESP32">
+                            ESP32
+                        </button>
+                        <button type="button" onclick="fillSonoffClaimCode()" class="px-2.5 py-2 rounded-xl bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 text-xs font-mono font-bold" title="Remplir module Sonoff 10A">
+                            Sonoff
                         </button>
                     </div>
                 </div>
@@ -2720,6 +2723,13 @@
         function fillTestClaimCode() {
             document.getElementById('claimCodeInput').value = 'F2ED08CL';
             document.getElementById('claimNameInput').value = 'Interrupteur Salon (F2ED08)';
+        }
+
+        function fillSonoffClaimCode() {
+            document.getElementById('claimCodeInput').value = 'SONOFF-CL10A';
+            document.getElementById('claimNameInput').value = 'Interrupteur Sonoff Wi-Fi 10A';
+            const roomSel = document.getElementById('claimRoomSelect');
+            if (roomSel) roomSel.value = 'Salon';
         }
 
         async function scanNearbyDevices() {
