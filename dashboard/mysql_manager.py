@@ -818,3 +818,145 @@ def set_device_online_status(device_id, is_online):
         pass
     finally:
         conn.close()
+
+
+def update_module_details(device_id, name=None, room_name=None):
+    """Met à jour le nom personnalisé et la pièce d'un module dans sp_devices et esp32_device_configs"""
+    conn = get_connection()
+    if not conn:
+        return False, "MySQL non accessible."
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT homeId, roomId FROM sp_devices WHERE id = %s", (device_id,))
+            dev = cur.fetchone()
+            if not dev:
+                conn.close()
+                return False, f"Module '{device_id}' introuvable."
+            
+            home_id = dev["homeId"]
+            room_id = dev["roomId"]
+
+            if room_name:
+                room_name = room_name.strip()
+                cur.execute("SELECT id FROM sp_rooms WHERE homeId = %s AND LOWER(name) = LOWER(%s) LIMIT 1", (home_id, room_name))
+                r_row = cur.fetchone()
+                if r_row:
+                    room_id = r_row["id"]
+                else:
+                    room_id = "room_" + uuid.uuid4().hex[:16]
+                    cur.execute("INSERT INTO sp_rooms (id, homeId, name, icon, sort) VALUES (%s, %s, %s, 'sofa', 0)", (room_id, home_id, room_name))
+
+            updates = []
+            params = []
+            if name:
+                updates.append("name = %s")
+                params.append(name.strip())
+            if room_id:
+                updates.append("roomId = %s")
+                params.append(room_id)
+
+            if updates:
+                params.append(device_id)
+                cur.execute(f"UPDATE sp_devices SET {', '.join(updates)} WHERE id = %s", tuple(params))
+
+            if name:
+                cur.execute("UPDATE esp32_device_configs SET device_name = %s WHERE device_id = %s", (name.strip(), device_id))
+
+            conn.commit()
+        conn.close()
+        return True, "Module mis à jour avec succès en base de données SQL."
+    except Exception as e:
+        return False, str(e)
+
+def get_user_account(user_email=None):
+    """Récupère les informations complètes du compte utilisateur et de son domicile principal"""
+    conn = get_connection()
+    if not conn:
+        return None
+    try:
+        with conn.cursor() as cur:
+            if user_email:
+                cur.execute("SELECT id, email, name, role FROM sp_users WHERE email = %s LIMIT 1", (user_email,))
+            else:
+                cur.execute("SELECT id, email, name, role FROM sp_users WHERE email = 'yassine@smartpower.tn' LIMIT 1")
+            user = cur.fetchone()
+            if not user:
+                cur.execute("SELECT id, email, name, role FROM sp_users LIMIT 1")
+                user = cur.fetchone()
+
+            if not user:
+                conn.close()
+                return None
+
+            user_id = user["id"]
+            cur.execute("""
+                SELECT h.id as home_id, h.name as home_name, h.currency, h.tariffPerKwh
+                FROM sp_home_members m
+                JOIN sp_homes h ON h.id = m.homeId
+                WHERE m.userId = %s
+                LIMIT 1
+            """, (user_id,))
+            home = cur.fetchone()
+
+            total_devices = 0
+            if home:
+                cur.execute("SELECT COUNT(*) as cnt FROM sp_devices WHERE homeId = %s", (home["home_id"],))
+                cnt_row = cur.fetchone()
+                total_devices = cnt_row["cnt"] if cnt_row else 0
+
+            rooms = []
+            if home:
+                cur.execute("SELECT id, name, icon FROM sp_rooms WHERE homeId = %s ORDER BY sort, name", (home["home_id"],))
+                rooms = cur.fetchall()
+
+        conn.close()
+        return {
+            "id": user["id"],
+            "name": user["name"] if user["name"] else "Yassine Azouzi",
+            "email": user["email"],
+            "role": user["role"],
+            "home_id": home["home_id"] if home else None,
+            "home_name": home["home_name"] if home else "Villa La Marsa - Yassine",
+            "currency": home["currency"] if home else "TND",
+            "tariff": float(home["tariffPerKwh"]) if home and home["tariffPerKwh"] else 0.22,
+            "total_devices": total_devices,
+            "rooms": rooms
+        }
+    except Exception as e:
+        print("[get_user_account error]", e)
+        return None
+
+def update_user_account(user_id, name, email, home_name=None):
+    """Enregistre les modifications du compte client et du domicile dans MySQL"""
+    conn = get_connection()
+    if not conn:
+        return False, "MySQL non accessible."
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE sp_users SET name = %s, email = %s WHERE id = %s", (name, email, user_id))
+            if home_name:
+                cur.execute("""
+                    UPDATE sp_homes h
+                    JOIN sp_home_members m ON m.homeId = h.id
+                    SET h.name = %s
+                    WHERE m.userId = %s
+                """, (home_name, user_id))
+            conn.commit()
+        conn.close()
+        return True, "Informations utilisateur enregistrées avec succès en base SQL !"
+    except Exception as e:
+        return False, str(e)
+
+def create_room_in_home(home_id, room_name, icon='sofa'):
+    conn = get_connection()
+    if not conn:
+        return False, "MySQL non accessible."
+    try:
+        with conn.cursor() as cur:
+            room_id = "room_" + uuid.uuid4().hex[:16]
+            cur.execute("INSERT INTO sp_rooms (id, homeId, name, icon, sort) VALUES (%s, %s, %s, %s, 0)", (room_id, home_id, room_name, icon))
+            conn.commit()
+        conn.close()
+        return True, {"id": room_id, "name": room_name, "icon": icon}
+    except Exception as e:
+        return False, str(e)

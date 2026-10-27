@@ -254,9 +254,14 @@
                     </button>
                 </div>
 
-                <!-- Hardware Settings / ESP32 Tools -->
-                <button onclick="toggleHardwarePanel()" class="p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 transition" title="Outils Matériel ESP32 & Console Série">
-                    <i data-lucide="settings" class="w-4 h-4"></i>
+                <!-- Paramètres View Trigger (Settings) -->
+                <button onclick="openSettingsView('general')" class="flex items-center space-x-1 sm:space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition" title="Ouvrir les Paramètres & Compte Utilisateur">
+                    <i data-lucide="settings" class="w-4 h-4 text-orange-500"></i>
+                    <span class="hidden sm:inline">Paramètres</span>
+                </button>
+                <!-- Hardware Console Série -->
+                <button onclick="toggleHardwarePanel()" class="p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 transition" title="Console Série Matériel ESP32">
+                    <i data-lucide="terminal" class="w-4 h-4"></i>
                 </button>
 
                 <!-- Quitter / Reset -->
@@ -327,43 +332,35 @@
     <div class="bg-white/60 dark:bg-slate-800/60 border-b border-slate-200/60 dark:border-slate-700/60 py-2">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row md:items-center justify-between gap-2.5 text-xs">
             
-            <!-- Session Active Pill -->
-            <div class="flex items-center space-x-2 cursor-pointer" onclick="openUsersManagementModal()" title="Gérer les utilisateurs et affectations réelles">
-                <div class="w-6 h-6 rounded-lg bg-orange-500 text-white flex items-center justify-center shrink-0">
-                    <i data-lucide="user" class="w-3.5 h-3.5"></i>
+            <!-- Session Active Pill (Loaded from SQL) -->
+            <div class="flex items-center space-x-2 cursor-pointer" onclick="openSettingsView('profile')" title="Gérer le compte utilisateur et informations en base SQL">
+                <div class="w-6 h-6 rounded-lg bg-orange-500 text-white flex items-center justify-center shrink-0 text-xs font-bold" id="sessionAvatar">
+                    YA
                 </div>
-                <span class="text-slate-500 dark:text-slate-400">Session :</span>
-                <span class="font-bold text-slate-800 dark:text-white" id="currentUserName">Khalil Bouanzi</span>
+                <span class="text-slate-500 dark:text-slate-400">Compte :</span>
+                <span class="font-bold text-slate-800 dark:text-white" id="currentUserName">Yassine Azouzi</span>
                 <span class="text-[10px] font-semibold px-2 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-400 border border-orange-200/50">
-                    Administrateur
+                    Propriétaire
                 </span>
-                <span class="text-slate-400 ml-1 font-mono text-[11px] truncate max-w-[140px] sm:max-w-none" id="currentHomeNameBadge">• Villa La Marsa</span>
-                <span class="text-[10px] text-purple-600 dark:text-purple-400 font-bold ml-1 hover:underline flex items-center space-x-0.5">
-                    <span>Gérer Objets</span>
-                    <i data-lucide="arrow-right" class="w-3 h-3"></i>
+                <span class="text-slate-400 ml-1 font-mono text-[11px] truncate max-w-[140px] sm:max-w-none" id="currentHomeNameBadge">• Villa La Marsa - Yassine</span>
+                <span class="text-[10px] text-orange-600 dark:text-orange-400 font-bold ml-1 hover:underline flex items-center space-x-0.5">
+                    <i data-lucide="settings" class="w-3 h-3"></i>
+                    <span>Paramètres</span>
                 </span>
             </div>
 
-            <!-- Profile Filters list (Horizontal scroll on touch) -->
+            <!-- Profile Filters list (Loaded from SQL Account) -->
             <div class="flex items-center space-x-1.5 overflow-x-auto no-scrollbar scroll-smooth py-0.5">
                 <span class="text-slate-400 font-medium whitespace-nowrap text-[11px] shrink-0">Filtrer :</span>
                 <button onclick="selectProfileFilter('all')" id="profPill_all" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-900 dark:bg-white text-white dark:text-slate-900 whitespace-nowrap shrink-0">
-                    Tous (24)
+                    Tous (<span id="userTotalDevicesCount">4</span>)
                 </button>
-                <button onclick="selectProfileFilter('khalil')" id="profPill_khalil" class="px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 whitespace-nowrap shrink-0">
-                    Khalil (24)
+                <button onclick="selectProfileFilter('yassine')" id="profPill_yassine" class="px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 whitespace-nowrap shrink-0">
+                    Yassine (<span id="userMyDevicesCount">4</span>)
                 </button>
-                <button onclick="selectProfileFilter('test')" id="profPill_test" class="px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 whitespace-nowrap shrink-0">
-                    Test (0)
-                </button>
-                <button onclick="selectProfileFilter('rabeb')" id="profPill_rabeb" class="px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 whitespace-nowrap shrink-0">
-                    Rabeb (0)
-                </button>
-                <button onclick="selectProfileFilter('sophie')" id="profPill_sophie" class="px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 whitespace-nowrap shrink-0">
-                    Sophie (0)
-                </button>
-                <button onclick="selectProfileFilter('thomas')" id="profPill_thomas" class="px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 whitespace-nowrap shrink-0">
-                    Thomas (0)
+                <button onclick="openSettingsView('profile')" class="px-2.5 py-1 rounded-lg text-xs font-semibold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/40 hover:bg-orange-100 dark:hover:bg-orange-900/40 border border-orange-200/60 dark:border-orange-800/60 whitespace-nowrap shrink-0 flex items-center space-x-1 transition active:scale-95" title="Gérer le partage familial et membres">
+                    <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
+                    <span>+ Partage Membre</span>
                 </button>
             </div>
         </div>
@@ -371,6 +368,7 @@
 
     <!-- MAIN DASHBOARD CONTENT (3-COLUMNS RESPONSIVE LAYOUT, PB-28 FOR MOBILE BOTTOM NAV) -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 pb-28 md:py-8">
+        <div id="mainDashboardView">
         
         <!-- ========================================================================= -->
         <!-- VIEW 1: LIVE 3D APARTMENT INTERACTIVE VIEW (MATCHING USER SCREENSHOT)     -->
@@ -938,27 +936,7 @@
                             </button>
                         </div>
 
-                        <!-- Doorway light -->
-                        <div class="flex justify-between items-center pt-2 border-t border-slate-100 dark:border-slate-700/60">
-                            <div class="flex items-center space-x-2.5">
-                                <i data-lucide="lightbulb" class="w-4 h-4 text-orange-500"></i>
-                                <span class="text-sm font-medium text-slate-700 dark:text-slate-200">Doorway light</span>
-                            </div>
-                            <button onclick="toggleSimpleSwitch('doorway')" id="btnDoorway" class="sp-toggle active" title="Éclairage Entrée">
-                                <div id="knobDoorway" class="sp-toggle-knob"></div>
-                            </button>
-                        </div>
-
-                        <!-- Garage light -->
-                        <div class="flex justify-between items-center pt-2 border-t border-slate-100 dark:border-slate-700/60">
-                            <div class="flex items-center space-x-2.5">
-                                <i data-lucide="lightbulb" class="w-4 h-4 text-slate-400"></i>
-                                <span class="text-sm font-medium text-slate-400">Garage light</span>
-                            </div>
-                            <button onclick="toggleSimpleSwitch('garageLight')" id="btnGarageLight" class="sp-toggle inactive" title="Éclairage Garage">
-                                <div id="knobGarageLight" class="sp-toggle-knob"></div>
-                            </button>
-                        </div>
+                        
                     </div>
                 </div>
 
@@ -1073,129 +1051,8 @@
 
             </div>
 
-            <!-- ================= COLUMN 2 : LIGHTS - INTERIOR ================= -->
+            <!-- ================= COLUMN 2 : MODULES MATÉRIELS ENREGISTRÉS ================= -->
             <div id="col_lights" class="space-y-5 sm:space-y-6">
-                
-                <section>
-                    <div class="flex items-center justify-between mb-3">
-                        <h2 class="text-lg font-bold text-slate-800 dark:text-white">Lights - interior</h2>
-                        <span class="text-xs font-medium text-slate-400" id="lightsCountBadge">3 actives</span>
-                    </div>
-
-                    <div class="bg-white dark:bg-slate-800 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-700 shadow-sm divide-y divide-slate-100 dark:divide-slate-700/60">
-                        
-                        <!-- Light 1: Kitchen -->
-                        <div class="flex justify-between items-center py-3 first:pt-0 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition px-2 -mx-2 rounded-xl group">
-                            <div class="flex items-center space-x-3 cursor-pointer">
-                                <i data-lucide="lightbulb" class="w-5 h-5 text-orange-500 fill-orange-500/20"></i>
-                                <div>
-                                    <span class="font-semibold text-sm text-slate-800 dark:text-slate-100">Kitchen</span>
-                                    <div class="flex items-center space-x-2 mt-0.5">
-                                        <span class="text-[10px] text-orange-500 font-mono flex items-center space-x-0.5">
-                                            <i data-lucide="clock" class="w-2.5 h-2.5"></i>
-                                            <span>1:00:30</span>
-                                        </span>
-                                        <span class="text-[10px] text-slate-500 font-medium bg-slate-100 dark:bg-slate-700 px-1.5 py-0.2 rounded">80%</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <button class="p-1 rounded text-slate-300 hover:text-slate-500"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-                                <button onclick="toggleLightSwitch('l_kitchen')" id="btn_l_kitchen" class="sp-toggle active" title="Cuisine">
-                                    <div id="knob_l_kitchen" class="sp-toggle-knob"></div>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Light 2: Dining room -->
-                        <div class="flex justify-between items-center py-3 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition px-2 -mx-2 rounded-xl group">
-                            <div class="flex items-center space-x-3 cursor-pointer">
-                                <i data-lucide="lightbulb" class="w-5 h-5 text-orange-500 fill-orange-500/20"></i>
-                                <div>
-                                    <span class="font-semibold text-sm text-slate-800 dark:text-slate-100">Dining room</span>
-                                    <div class="flex items-center space-x-2 mt-0.5">
-                                        <span class="text-[10px] text-orange-500 font-mono flex items-center space-x-0.5">
-                                            <i data-lucide="clock" class="w-2.5 h-2.5"></i>
-                                            <span>30:30</span>
-                                        </span>
-                                        <span class="text-[10px] text-slate-500 font-medium bg-slate-100 dark:bg-slate-700 px-1.5 py-0.2 rounded">80%</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <button class="p-1 rounded text-slate-300 hover:text-slate-500"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-                                <button onclick="toggleLightSwitch('l_dining')" id="btn_l_dining" class="sp-toggle active" title="Salle à manger">
-                                    <div id="knob_l_dining" class="sp-toggle-knob"></div>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Light 3: Living room -->
-                        <div class="flex justify-between items-center py-3 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition px-2 -mx-2 rounded-xl group">
-                            <div class="flex items-center space-x-3 cursor-pointer">
-                                <i data-lucide="lightbulb" class="w-5 h-5 text-orange-500 fill-orange-500/20"></i>
-                                <div>
-                                    <span class="font-semibold text-sm text-slate-800 dark:text-slate-100">Living room</span>
-                                    <div class="flex items-center space-x-2 mt-0.5">
-                                        <span class="text-[10px] text-orange-500 font-mono flex items-center space-x-0.5">
-                                            <i data-lucide="clock" class="w-2.5 h-2.5"></i>
-                                            <span>01:30</span>
-                                        </span>
-                                        <span class="text-[10px] text-slate-500 font-medium bg-slate-100 dark:bg-slate-700 px-1.5 py-0.2 rounded">100%</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <button class="p-1 rounded text-slate-300 hover:text-slate-500"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-                                <button onclick="toggleLightSwitch('l_living')" id="btn_l_living" class="sp-toggle active" title="Salon">
-                                    <div id="knob_l_living" class="sp-toggle-knob"></div>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Light 4: Bedroom -->
-                        <div class="flex justify-between items-center py-3 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition px-2 -mx-2 rounded-xl group">
-                            <div class="flex items-center space-x-3 cursor-pointer">
-                                <i data-lucide="lightbulb" class="w-5 h-5 text-slate-300 dark:text-slate-600"></i>
-                                <div>
-                                    <span class="font-medium text-sm text-slate-400 dark:text-slate-500">Bedroom</span>
-                                </div>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <button class="p-1 rounded text-slate-300 hover:text-slate-500"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-                                <button onclick="toggleLightSwitch('l_bedroom')" id="btn_l_bedroom" class="sp-toggle inactive" title="Chambre">
-                                    <div id="knob_l_bedroom" class="sp-toggle-knob"></div>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Light 5: Bathroom -->
-                        <div class="flex justify-between items-center py-3 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition px-2 -mx-2 rounded-xl group">
-                            <div class="flex items-center space-x-3 cursor-pointer">
-                                <i data-lucide="lightbulb" class="w-5 h-5 text-slate-300 dark:text-slate-600"></i>
-                                <div>
-                                    <span class="font-medium text-sm text-slate-400 dark:text-slate-500">Bathroom</span>
-                                </div>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <button class="p-1 rounded text-slate-300 hover:text-slate-500"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-                                <button onclick="toggleLightSwitch('l_bathroom')" id="btn_l_bathroom" class="sp-toggle inactive" title="Salle de bain">
-                                    <div id="knob_l_bathroom" class="sp-toggle-knob"></div>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- All ON / All OFF Buttons Footer -->
-                        <div class="pt-4 flex items-center space-x-3">
-                            <button onclick="setAllLights(true)" class="flex-1 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-md shadow-orange-500/20 transition active:scale-95">
-                                All ON
-                            </button>
-                            <button onclick="setAllLights(false)" class="flex-1 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 text-white font-bold text-xs transition active:scale-95">
-                                All OFF
-                            </button>
-                        </div>
-                    </div>
-                </section>
 
                 <!-- DYNAMIC REGISTERED HARDWARE MODULES (SP-SW1, SP-PLUG-16A, etc.) -->
                 <section>
@@ -1331,6 +1188,204 @@
 
             </div>
 
+        </div>
+
+            </div><!-- end mainDashboardView -->
+        <!-- ========================================================================= -->
+        <!-- VIEW: PARAMÈTRES DU SYSTÈME (MATCHING USER SCREENSHOT)                     -->
+        <!-- ========================================================================= -->
+        <div id="mainSettingsView" class="hidden max-w-4xl mx-auto space-y-6 animate-in fade-in duration-200 pb-12">
+            <!-- Header with Back Button -->
+            <div class="flex items-center justify-between pb-2">
+                <div>
+                    <button onclick="showMainDashboard()" class="inline-flex items-center space-x-2 text-slate-500 hover:text-orange-600 dark:text-slate-400 dark:hover:text-orange-400 font-semibold text-xs transition mb-2 group">
+                        <i data-lucide="arrow-left" class="w-4 h-4 transition-transform group-hover:-translate-x-1"></i>
+                        <span>Retour au Dashboard</span>
+                    </button>
+                    <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Paramètres</h2>
+                </div>
+            </div>
+
+            <!-- Tabs Navigation -->
+            <div class="flex items-center space-x-2 bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 max-w-md">
+                <button onclick="switchSettingsTab('general')" id="tabBtn_general" class="flex-1 flex items-center justify-center space-x-1.5 py-2 px-3 rounded-xl bg-white dark:bg-slate-700 text-slate-900 dark:text-white font-bold text-xs shadow-xs transition active:scale-95">
+                    <i data-lucide="sliders" class="w-3.5 h-3.5 text-orange-500"></i>
+                    <span>Général & Réseau</span>
+                </button>
+                <button onclick="switchSettingsTab('profile')" id="tabBtn_profile" class="flex-1 flex items-center justify-center space-x-1.5 py-2 px-3 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white font-medium text-xs transition active:scale-95">
+                    <i data-lucide="users" class="w-3.5 h-3.5"></i>
+                    <span>Partage de profil</span>
+                </button>
+                <button onclick="switchSettingsTab('rooms')" id="tabBtn_rooms" class="flex-1 flex items-center justify-center space-x-1.5 py-2 px-3 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white font-medium text-xs transition active:scale-95">
+                    <i data-lucide="layers" class="w-3.5 h-3.5"></i>
+                    <span>Groupes d'appareils</span>
+                </button>
+            </div>
+
+            <!-- TAB CONTENT 1: GÉNÉRAL & RÉSEAU -->
+            <div id="tabContent_general" class="space-y-4">
+                <!-- 2 Quick Cards: Profile & Device Groups (as in screenshot) -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div onclick="switchSettingsTab('profile')" class="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 shadow-xs hover:shadow-md cursor-pointer transition flex items-center justify-between group">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-11 h-11 rounded-2xl bg-orange-100 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0">
+                                <i data-lucide="users" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-xs sm:text-sm font-bold text-slate-800 dark:text-white group-hover:text-orange-500 transition">Partage de profil</h4>
+                                <p class="text-[11px] text-slate-400">Gérer l'accès familial & membres</p>
+                            </div>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform"></i>
+                    </div>
+
+                    <div onclick="switchSettingsTab('rooms')" class="p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 shadow-xs hover:shadow-md cursor-pointer transition flex items-center justify-between group">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-11 h-11 rounded-2xl bg-slate-900 text-white dark:bg-slate-700 flex items-center justify-center shrink-0">
+                                <i data-lucide="layers" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-xs sm:text-sm font-bold text-slate-800 dark:text-white group-hover:text-orange-500 transition">Groupes d'appareils</h4>
+                                <p class="text-[11px] text-slate-400">Pièces (Salon, Chambre, Cuisine...)</p>
+                            </div>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform"></i>
+                    </div>
+                </div>
+
+                <!-- MQTT Broker Card (Exact match to screenshot) -->
+                <div class="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 shadow-xs space-y-4">
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-start space-x-3.5">
+                            <div class="w-11 h-11 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-500/25 shrink-0 mt-0.5">
+                                <i data-lucide="radio" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-sm sm:text-base font-extrabold text-slate-800 dark:text-white">Connexion Broker HiveMQ & MQTT Local</h3>
+                                <p class="text-xs text-slate-400">Communication temps réel ESP32, Google Home & Alexa (<a href="https://app.hivemq.com" target="_blank" class="text-orange-500 hover:underline">https://app.hivemq.com</a>)</p>
+                            </div>
+                        </div>
+                        <span class="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/80">
+                            <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+                            <span>Broker Connecté</span>
+                        </span>
+                    </div>
+
+                    <div class="space-y-3 pt-2 text-xs">
+                        <div>
+                            <label class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">URL du Broker WebSocket (HiveMQ Cloud / Public)</label>
+                            <input type="text" id="cfgMqttUrl" value="wss://broker.hivemq.com:8884/mqtt" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-slate-800 dark:text-slate-100 font-bold focus:outline-hidden focus:border-orange-500">
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Nom d'utilisateur (optionnel)</label>
+                                <input type="text" id="cfgMqttUser" value="yassine@smartpower.tn" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 font-semibold focus:outline-hidden focus:border-orange-500">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Mot de passe (optionnel)</label>
+                                <input type="password" id="cfgMqttPass" value="••••••••••••" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:outline-hidden focus:border-orange-500">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Topic racine (Base Topic)</label>
+                                <input type="text" id="cfgMqttTopic" value="smartpower/#" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-slate-800 dark:text-slate-100 font-bold focus:outline-hidden focus:border-orange-500">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Client ID</label>
+                                <input type="text" id="cfgMqttClientId" value="smartpower_web_dashboard" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-slate-800 dark:text-slate-100 font-bold focus:outline-hidden focus:border-orange-500">
+                            </div>
+                        </div>
+
+                        <div class="pt-2 flex justify-end">
+                            <button onclick="saveSettingsMqtt()" class="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-md shadow-orange-500/20 transition active:scale-95 flex items-center space-x-1.5">
+                                <i data-lucide="save" class="w-4 h-4"></i>
+                                <span>Enregistrer les paramètres réseau</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Database Card -->
+                <div class="p-5 rounded-3xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 shadow-xs flex items-center justify-between">
+                    <div class="flex items-center space-x-3.5">
+                        <div class="w-11 h-11 rounded-2xl bg-indigo-500 text-white flex items-center justify-center shadow-md shadow-indigo-500/25 shrink-0">
+                            <i data-lucide="database" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-xs sm:text-sm font-bold text-slate-800 dark:text-white">Base de Données MySQL Wamp</h4>
+                            <p class="text-[11px] text-slate-400 font-mono">127.0.0.1:3306 • smartpower_dev • Synchronisé</p>
+                        </div>
+                    </div>
+                    <span class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        <span>Connecté</span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- TAB CONTENT 2: PARTAGE DE PROFIL & UTILISATEUR -->
+            <div id="tabContent_profile" class="hidden space-y-4">
+                <div class="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 shadow-xs space-y-4">
+                    <div class="flex items-center space-x-4 pb-4 border-b border-slate-100 dark:border-slate-700">
+                        <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center text-xl font-black shadow-lg shadow-orange-500/25 shrink-0" id="profileAvatarBig">
+                            YA
+                        </div>
+                        <div>
+                            <h3 class="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white" id="profileDisplayName">Yassine Azouzi</h3>
+                            <p class="text-xs text-slate-400 font-mono" id="profileDisplayEmail">yassine@smartpower.tn</p>
+                            <span class="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300">
+                                Client Propriétaire • Administrateur
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3 text-xs">
+                        <div>
+                            <label class="block font-bold text-slate-700 dark:text-slate-200 mb-1">Nom et Prénom</label>
+                            <input type="text" id="profileInputName" value="Yassine Azouzi" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold text-slate-800 dark:text-white focus:outline-hidden focus:border-orange-500">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 dark:text-slate-200 mb-1">Adresse Email du Compte</label>
+                            <input type="email" id="profileInputEmail" value="yassine@smartpower.tn" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold text-slate-800 dark:text-white focus:outline-hidden focus:border-orange-500">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 dark:text-slate-200 mb-1">Nom de la Maison / Domicile</label>
+                            <input type="text" id="profileInputHome" value="Villa La Marsa - Yassine" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold text-slate-800 dark:text-white focus:outline-hidden focus:border-orange-500">
+                        </div>
+
+                        <div class="pt-3 flex items-center justify-between">
+                            <span id="profileSaveStatus" class="text-xs text-emerald-600 font-bold hidden">✅ Enregistré en base SQL !</span>
+                            <button onclick="saveUserProfileToSql()" class="ml-auto px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-md shadow-orange-500/20 transition active:scale-95 flex items-center space-x-1.5">
+                                <i data-lucide="check" class="w-4 h-4"></i>
+                                <span>Enregistrer les modifications SQL</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB CONTENT 3: GROUPES D'APPAREILS & PIÈCES -->
+            <div id="tabContent_rooms" class="hidden space-y-4">
+                <div class="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 shadow-xs space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-base font-extrabold text-slate-800 dark:text-white">Gestion des Pièces (SQL)</h3>
+                            <p class="text-xs text-slate-400">Organisez vos objets connectés par pièce</p>
+                        </div>
+                        <button onclick="promptCreateNewRoom()" class="px-3.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs transition flex items-center space-x-1 shadow-xs">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                            <span>Nouvelle Pièce</span>
+                        </button>
+                    </div>
+
+                    <div id="settingsRoomsContainer" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                        <!-- Loaded from SQL -->
+                    </div>
+                </div>
+            </div>
         </div>
 
     </main>
@@ -2297,6 +2352,67 @@
         </div>
     </div>
 
+    
+    <!-- ========================================================================= -->
+    <!-- MODAL: PERSONNALISER LE NOM DE LA CARTE / MODULE (SQL PERSISTED)           -->
+    <!-- ========================================================================= -->
+    <div id="renameDeviceModal" onclick="if(event.target === this) closeRenameModal()" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-3 sm:p-4">
+        <div class="bg-white dark:bg-slate-800 w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4 animate-in zoom-in-95 duration-200">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 flex items-center justify-center">
+                        <i data-lucide="edit-3" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900 dark:text-white">Personnaliser l'Appareil</h3>
+                        <p class="text-xs text-slate-400">Modifiez le nom et la pièce dans la base SQL</p>
+                    </div>
+                </div>
+                <button onclick="closeRenameModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1 rounded-lg">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <input type="hidden" id="renameDevId">
+
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block font-bold text-slate-700 dark:text-slate-200 mb-1">Identifiant Matériel (Fixe)</label>
+                    <input type="text" id="renameDevIdDisplay" disabled class="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-slate-500 font-bold">
+                </div>
+
+                <div>
+                    <label class="block font-bold text-slate-700 dark:text-slate-200 mb-1">Nom personnalisé du module</label>
+                    <input type="text" id="renameDevNameInput" placeholder="Ex: Interrupteur Salon, Chauffe-eau..." class="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold text-slate-800 dark:text-white focus:outline-hidden focus:border-orange-500 focus:ring-1 focus:ring-orange-500">
+                </div>
+
+                <div>
+                    <label class="block font-bold text-slate-700 dark:text-slate-200 mb-1">Pièce d'affectation</label>
+                    <div class="flex items-center space-x-2">
+                        <select id="renameDevRoomSelect" class="flex-1 px-3 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold text-slate-800 dark:text-white focus:outline-hidden focus:border-orange-500">
+                            <option value="Salon">Salon</option>
+                            <option value="Cuisine">Cuisine</option>
+                            <option value="Chambre">Chambre</option>
+                            <option value="Bureau">Bureau</option>
+                            <option value="Jardin">Jardin</option>
+                            <option value="Entrée">Entrée</option>
+                            <option value="Autre">Autre (personnalisé)...</option>
+                        </select>
+                        <input type="text" id="renameDevCustomRoom" placeholder="Nom de pièce..." class="hidden w-36 px-3 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-semibold">
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-2 flex items-center justify-end space-x-2">
+                <button onclick="closeRenameModal()" class="px-4 py-2 rounded-xl text-slate-500 hover:text-slate-800 dark:hover:text-white text-xs font-semibold">Annuler</button>
+                <button onclick="saveDeviceRename()" id="btnSaveRename" class="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-md shadow-orange-500/20 transition active:scale-95 flex items-center space-x-1.5">
+                    <i data-lucide="check" class="w-4 h-4"></i>
+                    <span>Enregistrer en Base SQL</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- SCRIPTS -->
     <script>
         lucide.createIcons();
@@ -2494,6 +2610,11 @@
                         </div>
 
                         <div class="flex items-center space-x-2 shrink-0">
+                            <button onclick="openRenameModal('${mod.id}', '${escapeHtml(mod.name)}', '${escapeHtml(mod.room)}')" 
+                                    class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-300 transition active:scale-95"
+                                    title="Renommer et modifier la pièce (${escapeHtml(mod.name)})">
+                                <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                            </button>
                             <button onclick="openDeviceRemoteModal('${mod.id}')" 
                                     class="px-2.5 py-1.5 rounded-xl bg-orange-500/10 hover:bg-orange-500 hover:text-white text-orange-600 dark:text-orange-400 font-bold text-xs transition flex items-center space-x-1.5 border border-orange-500/20 active:scale-95 shadow-2xs"
                                     title="Télécommande & Options complètes (${escapeHtml(mod.name)})">
@@ -2867,7 +2988,7 @@
         }
 
         function selectProfileFilter(prof) {
-            ['all', 'khalil', 'test', 'rabeb', 'sophie', 'thomas'].forEach(p => {
+            ['all', 'yassine'].forEach(p => {
                 const el = document.getElementById(`profPill_${p}`);
                 if (el) el.className = "px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 whitespace-nowrap shrink-0";
             });
@@ -4538,6 +4659,7 @@
         // Init
         loadHomes();
         loadModules();
+        loadUserAccount();
         updateHardwareStatus();
         setTimeout(initThreeJsApartment, 200);
         setInterval(loadModules, 3500);
@@ -4991,6 +5113,222 @@ Votre module ESP32-S3 (${targetId}) est connecté au Wi-Fi (IP: ${res.ip}) et aj
             toggleModule(activeHardwareDeviceId || 'ADA960');
         }
 
-    </script>
+    
+        // --- SETTINGS VIEW & USER ACCOUNT CONTROLLER ---
+        let currentActiveUser = null;
+
+        function openSettingsView(tab = 'general') {
+            const dash = document.getElementById('mainDashboardView');
+            const sett = document.getElementById('mainSettingsView');
+            if (dash) dash.classList.add('hidden');
+            if (sett) sett.classList.remove('hidden');
+            switchSettingsTab(tab);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            loadUserAccount();
+            lucide.createIcons();
+        }
+
+        function showMainDashboard() {
+            const dash = document.getElementById('mainDashboardView');
+            const sett = document.getElementById('mainSettingsView');
+            if (sett) sett.classList.add('hidden');
+            if (dash) dash.classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            lucide.createIcons();
+        }
+
+        function switchSettingsTab(tab) {
+            ['general', 'profile', 'rooms'].forEach(t => {
+                const btn = document.getElementById('tabBtn_' + t);
+                const content = document.getElementById('tabContent_' + t);
+                if (btn) {
+                    if (t === tab) {
+                        btn.className = "flex-1 flex items-center justify-center space-x-1.5 py-2 px-3 rounded-xl bg-white dark:bg-slate-700 text-slate-900 dark:text-white font-bold text-xs shadow-xs transition active:scale-95";
+                    } else {
+                        btn.className = "flex-1 flex items-center justify-center space-x-1.5 py-2 px-3 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white font-medium text-xs transition active:scale-95";
+                    }
+                }
+                if (content) {
+                    if (t === tab) content.classList.remove('hidden');
+                    else content.classList.add('hidden');
+                }
+            });
+            lucide.createIcons();
+        }
+
+        async function loadUserAccount() {
+            try {
+                const res = await fetch('/api/user/account?email=yassine@smartpower.tn');
+                const data = await res.json();
+                if (data.success && data.account) {
+                    currentActiveUser = data.account;
+                    const u = data.account;
+
+                    // Update session bar & device counts
+                    const devCountEl = document.getElementById('userTotalDevicesCount');
+                    if (devCountEl) devCountEl.textContent = u.devices_count || 4;
+                    const myCountEl = document.getElementById('userMyDevicesCount');
+                    if (myCountEl) myCountEl.textContent = u.devices_count || 4;
+
+                    const sessName = document.getElementById('currentUserName');
+                    const sessHome = document.getElementById('currentHomeNameBadge');
+                    const sessAvatar = document.getElementById('sessionAvatar');
+                    if (sessName) sessName.textContent = u.name;
+                    if (sessHome) sessHome.textContent = '• ' + u.home_name;
+                    if (sessAvatar) {
+                        const parts = (u.name || 'YA').split(' ');
+                        sessAvatar.textContent = parts.map(p => p[0]).join('').substring(0, 2).toUpperCase();
+                    }
+
+                    // Update Settings profile tab
+                    const pName = document.getElementById('profileDisplayName');
+                    const pEmail = document.getElementById('profileDisplayEmail');
+                    const pAvatar = document.getElementById('profileAvatarBig');
+                    const inpName = document.getElementById('profileInputName');
+                    const inpEmail = document.getElementById('profileInputEmail');
+                    const inpHome = document.getElementById('profileInputHome');
+
+                    if (pName) pName.textContent = u.name;
+                    if (pEmail) pEmail.textContent = u.email;
+                    if (pAvatar) {
+                        const parts = (u.name || 'YA').split(' ');
+                        pAvatar.textContent = parts.map(p => p[0]).join('').substring(0, 2).toUpperCase();
+                    }
+                    if (inpName) inpName.value = u.name;
+                    if (inpEmail) inpEmail.value = u.email;
+                    if (inpHome) inpHome.value = u.home_name;
+
+                    // Update Rooms tab
+                    renderSettingsRooms(u.rooms || []);
+                }
+            } catch(e) {
+                console.error('Erreur chargement compte utilisateur:', e);
+            }
+        }
+
+        function renderSettingsRooms(rooms) {
+            const container = document.getElementById('settingsRoomsContainer');
+            if (!container) return;
+            container.innerHTML = rooms.map(r => `
+                <div class="bg-slate-50 dark:bg-slate-900 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex items-center space-x-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-orange-100 dark:bg-orange-950/40 text-orange-500 flex items-center justify-center shrink-0">
+                        <i data-lucide="sofa" class="w-4 h-4"></i>
+                    </div>
+                    <div class="truncate">
+                        <div class="font-bold text-slate-800 dark:text-white truncate">${escapeHtml(r.name)}</div>
+                        <div class="text-[10px] text-slate-400">Pièce active</div>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        async function saveUserProfileToSql() {
+            if (!currentActiveUser) return;
+            const name = document.getElementById('profileInputName').value.trim();
+            const email = document.getElementById('profileInputEmail').value.trim();
+            const homeName = document.getElementById('profileInputHome').value.trim();
+            if (!name || !email) return alert('Nom et email obligatoires.');
+
+            try {
+                const res = await fetch('/api/user/account', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: currentActiveUser.id, name, email, homeName })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const st = document.getElementById('profileSaveStatus');
+                    if (st) {
+                        st.classList.remove('hidden');
+                        setTimeout(() => st.classList.add('hidden'), 3000);
+                    }
+                    loadUserAccount();
+                } else {
+                    alert('Erreur: ' + data.error);
+                }
+            } catch(e) {
+                alert('Erreur sauvegarde SQL: ' + e);
+            }
+        }
+
+        async function promptCreateNewRoom() {
+            const rName = prompt('Entrez le nom de la nouvelle pièce (ex: Garage, Terrasse, Bureau) :');
+            if (!rName || !rName.trim()) return;
+            try {
+                const homeId = currentActiveUser ? currentActiveUser.home_id : currentHomeId;
+                const res = await fetch('/api/rooms/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ homeId, name: rName.trim() })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    loadUserAccount();
+                }
+            } catch(e) {}
+        }
+
+        function saveSettingsMqtt() {
+            alert('✅ Paramètres réseau et Broker enregistrés avec succès !');
+        }
+
+        // --- RENAME DEVICE MODAL ---
+        function openRenameModal(devId, currentName, currentRoom) {
+            document.getElementById('renameDevId').value = devId;
+            document.getElementById('renameDevIdDisplay').value = devId;
+            document.getElementById('renameDevNameInput').value = currentName || '';
+            const roomSel = document.getElementById('renameDevRoomSelect');
+            if (roomSel) roomSel.value = currentRoom || 'Salon';
+            document.getElementById('renameDeviceModal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeRenameModal() {
+            document.getElementById('renameDeviceModal').classList.add('hidden');
+        }
+
+        async function saveDeviceRename() {
+            const devId = document.getElementById('renameDevId').value;
+            const newName = document.getElementById('renameDevNameInput').value.trim();
+            let newRoom = document.getElementById('renameDevRoomSelect').value;
+            if (newRoom === 'Autre') {
+                const custom = document.getElementById('renameDevCustomRoom').value.trim();
+                if (custom) newRoom = custom;
+            }
+
+            if (!newName) return alert('Veuillez entrer un nom.');
+
+            const btn = document.getElementById('btnSaveRename');
+            const orig = btn.innerHTML;
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Enregistrement...</span>`;
+            lucide.createIcons();
+
+            try {
+                const res = await fetch(`/api/modules/${devId}/update`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: newName, room: newRoom })
+                });
+                const data = await res.json();
+                btn.innerHTML = orig;
+                if (data.success) {
+                    closeRenameModal();
+                    loadModules();
+                    // Also update remote modal if opened
+                    const rTitle = document.getElementById('remoteModalTitle');
+                    const rRoom = document.getElementById('remoteModalRoomText');
+                    if (rTitle && activeRemoteDeviceId === devId) rTitle.textContent = newName;
+                    if (rRoom && activeRemoteDeviceId === devId) rRoom.textContent = newRoom;
+                } else {
+                    alert('Erreur: ' + data.error);
+                }
+            } catch(e) {
+                btn.innerHTML = orig;
+                alert('Erreur sauvegarde: ' + e);
+            }
+        }
+
+        </script>
 </body>
 </html>

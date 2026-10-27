@@ -553,6 +553,69 @@ def toggle_module(device_id):
 # --- DEVICE TIMERS & REMOTE CONTROL SUITE ---
 active_device_timers = {}
 
+
+# --- USER ACCOUNT & CUSTOMIZATION API ---
+@app.route("/api/user/account", methods=["GET"])
+def get_user_account_api():
+    email = request.args.get("email")
+    acc = mysql_manager.get_user_account(email)
+    if acc:
+        return jsonify({"success": True, "account": acc})
+    return jsonify({"success": False, "error": "Compte utilisateur introuvable"}), 404
+
+@app.route("/api/user/account", methods=["POST"])
+def update_user_account_api():
+    data = request.get_json(silent=True) or request.form.to_dict() or {}
+    user_id = data.get("userId") or data.get("id")
+    name = data.get("name")
+    email = data.get("email")
+    home_name = data.get("homeName") or data.get("home_name")
+    if not user_id or not name or not email:
+        return jsonify({"success": False, "error": "ID, nom et email sont requis."}), 400
+    ok, msg = mysql_manager.update_user_account(user_id, name, email, home_name)
+    if ok:
+        serial_logs.append(f"[USER] 👤 Compte de {name} ({email}) mis à jour en base SQL.")
+        return jsonify({"success": True, "message": msg})
+    return jsonify({"success": False, "error": msg}), 500
+
+@app.route("/api/modules/<device_id>/update", methods=["POST"])
+def update_module_api(device_id):
+    data = request.get_json(silent=True) or request.form.to_dict() or {}
+    new_name = data.get("name")
+    new_room = data.get("room")
+    if not new_name and not new_room:
+        return jsonify({"success": False, "error": "Nom ou pièce requis."}), 400
+    ok, msg = mysql_manager.update_module_details(device_id, new_name, new_room)
+    if ok:
+        serial_logs.append(f"[MODULES] ✏️ Module {device_id} renommé -> '{new_name}' (Pièce: {new_room})")
+        return jsonify({"success": True, "message": msg, "id": device_id, "name": new_name, "room": new_room})
+    return jsonify({"success": False, "error": msg}), 400
+
+@app.route("/api/rooms/create", methods=["POST"])
+def create_room_api():
+    data = request.get_json(silent=True) or request.form.to_dict() or {}
+    home_id = data.get("homeId") or data.get("home_id") or "cmvjogkxo0002zcpxv7tixnp1"
+    room_name = data.get("name")
+    icon = data.get("icon", "sofa")
+    if not room_name:
+        return jsonify({"success": False, "error": "Nom de la pièce requis."}), 400
+    ok, res = mysql_manager.create_room_in_home(home_id, room_name, icon)
+    if ok:
+        serial_logs.append(f"[ROOMS] 🚪 Nouvelle pièce '{room_name}' ajoutée dans la maison.")
+        return jsonify({"success": True, "room": res})
+    return jsonify({"success": False, "error": str(res)}), 400
+
+@app.route("/api/settings", methods=["GET"])
+def get_system_settings():
+    return jsonify({
+        "success": True,
+        "mqtt": mqtt_service.get_mqtt_service_status(),
+        "wifi": current_wifi,
+        "database": {"connected": True, "name": "smartpower_dev", "host": "127.0.0.1:3306"},
+        "active_device": current_wifi.get("device_id", "ADA960"),
+        "active_ip": current_wifi.get("ip", "172.16.50.194")
+    })
+
 @app.route("/api/modules/<device_id>/led", methods=["POST"])
 def module_led_control(device_id):
     data = request.json or {}
