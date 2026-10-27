@@ -46,8 +46,26 @@ current_wifi = {
 }
 
 def check_port_physically_present(port_name):
+    if not port_name:
+        return False
     ports = [p.device.upper() for p in serial.tools.list_ports.comports()]
     return port_name.upper() in ports
+
+def get_active_esp_port():
+    global COM_PORT
+    if check_port_physically_present(COM_PORT):
+        return COM_PORT
+    for p in serial.tools.list_ports.comports():
+        vid = p.vid
+        pid = p.pid
+        desc = (p.description or "").lower()
+        if vid == 0x303A or (vid == 0x10C4 and pid == 0xEA60) or (vid == 0x1A86 and pid == 0x7523):
+            COM_PORT = p.device
+            return COM_PORT
+        if any(k in desc for k in ["cp210", "ch340", "espressif", "usb-serial", "périphérique série usb"]):
+            COM_PORT = p.device
+            return COM_PORT
+    return None
 
 def parse_serial_for_wifi(line):
     global current_wifi
@@ -93,9 +111,9 @@ def serial_worker():
             time.sleep(0.5)
             continue
 
-        port_exists = check_port_physically_present(COM_PORT)
+        active_port = get_active_esp_port()
 
-        if not port_exists:
+        if not active_port:
             if is_connected:
                 with worker_lock:
                     if ser is not None:
@@ -105,14 +123,15 @@ def serial_worker():
                             pass
                         ser = None
                     is_connected = False
-                    connection_error = f"Périphérique {COM_PORT} débranché."
-                    serial_logs.append(f"[SYSTEM] ⚠️ Déconnexion : {COM_PORT} n'est plus détecté.")
+                    connection_error = "Aucune carte ESP32 détectée sur les ports USB."
+                    serial_logs.append("[SYSTEM] ⚠️ Déconnexion : aucune carte ESP32 détectée.")
             time.sleep(1.0)
             continue
 
         if not is_connected or ser is None:
             try:
                 with worker_lock:
+                    COM_PORT = active_port
                     ser = serial.Serial()
                     ser.port = COM_PORT
                     ser.baudrate = BAUD_RATE
@@ -138,10 +157,14 @@ def serial_worker():
                 cmd_bytes = tx_queue.get_nowait()
                 with worker_lock:
                     if ser and ser.is_open:
-                        ser.write(cmd_bytes)
-                        ser.flush()
+                        try:
+                            ser.write(cmd_bytes)
+                            ser.flush()
+                        except Exception:
+                            pass
                 time.sleep(0.05)
-        except Exception as e:
+        except Exception:
+            pass
             with worker_lock:
                 is_connected = False
                 connection_error = f"Erreur écriture : {str(e)}"
