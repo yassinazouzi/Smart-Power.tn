@@ -544,26 +544,29 @@ def forward_command_to_sonoff(device_id, state):
             with conn.cursor() as cur:
                 cur.execute("SELECT ip_address FROM esp32_device_configs WHERE device_id = %s", (device_id,))
                 row = cur.fetchone()
-                if row and row.get("ip_address"):
+                if row and row.get("ip_address") and row["ip_address"] != "10.10.7.1":
                     sonoff_ip = row["ip_address"]
             conn.close()
     except Exception:
         pass
 
-    if not sonoff_ip:
-        # Scanner automatiquement les IP du sous-réseau local pour détecter l'IP du Sonoff
+    if not sonoff_ip or sonoff_ip == "10.10.7.1":
+        # Détecter dynamiquement la nouvelle IP locale du Sonoff sur le réseau LAN
         try:
-            for ip_cand in ["172.16.50.160", "172.16.50.207", "172.16.50.60", "172.16.50.61"]:
-                try:
-                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    s.settimeout(0.3)
-                    if s.connect_ex((ip_cand, 8081)) == 0 or s.connect_ex((ip_cand, 80)) == 0:
-                        sonoff_ip = ip_cand
-                        s.close()
-                        break
-                    s.close()
-                except Exception:
-                    pass
+            import network_discovery
+            for dev in network_discovery.discover_lan():
+                if "sonoff" in (dev.get("brand") or "").lower() or "sonoff" in (dev.get("name") or "").lower():
+                    sonoff_ip = dev.get("ip")
+                    try:
+                        conn = mysql_manager.get_connection()
+                        if conn:
+                            with conn.cursor() as cur:
+                                cur.execute("UPDATE esp32_device_configs SET ip_address = %s WHERE device_id = %s", (sonoff_ip, device_id))
+                                conn.commit()
+                            conn.close()
+                    except Exception:
+                        pass
+                    break
         except Exception:
             pass
 
