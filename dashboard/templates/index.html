@@ -2865,8 +2865,21 @@
 
                 const data = await res.json();
                 if (data.success) {
+                    // Si c'est un point d'accès Sonoff (10.10.7.1), injecter automatiquement le Wi-Fi
+                    if (ip === '10.10.7.1' || (brand || '').toLowerCase().includes('sonoff')) {
+                        btnEl.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>Injection Wi-Fi...</span>`;
+                        lucide.createIcons();
+                        try {
+                            await fetch('/api/sonoff/inject_wifi', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ ssid: 'adminbadira', password: 'Sthh@1245' })
+                            });
+                        } catch(e) {}
+                    }
+
                     btnEl.className = 'px-3.5 py-2 rounded-xl bg-emerald-500 text-white text-xs font-bold transition flex items-center space-x-1';
-                    btnEl.innerHTML = `<i data-lucide="check" class="w-3.5 h-3.5"></i><span>✅ Associé !</span>`;
+                    btnEl.innerHTML = `<i data-lucide="check" class="w-3.5 h-3.5"></i><span>✅ Associé & Wi-Fi Injecté !</span>`;
                     lucide.createIcons();
 
                     setTimeout(() => {

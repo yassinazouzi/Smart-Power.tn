@@ -594,6 +594,59 @@ def forward_command_to_sonoff(device_id, state):
     except Exception:
         pass
 
+@app.route("/api/sonoff/inject_wifi", methods=["POST"])
+def inject_sonoff_wifi():
+    """Injecte directement les identifiants Wi-Fi dans le point d'accès d'usine du Sonoff (10.10.7.1)"""
+    data = request.get_json(silent=True) or request.form.to_dict() or {}
+    target_ssid = data.get("ssid") or "adminbadira"
+    target_pwd = data.get("password") or "Sthh@1245"
+    ap_name = data.get("ap_name") or "ITEAD-100076f3fc"
+
+    # 1. Tenter la connexion Windows au Wi-Fi du Sonoff
+    try:
+        import subprocess
+        subprocess.run(f'netsh wlan connect name="{ap_name}"', shell=True, timeout=6)
+        time.sleep(3.0)
+    except Exception:
+        pass
+
+    # 2. Envoi de la requête de configuration HTTP POST vers 10.10.7.1/ap
+    success = False
+    err_detail = ""
+    for attempt in range(3):
+        try:
+            url = "http://10.10.7.1/ap"
+            payload = json.dumps({
+                "version": 4,
+                "ssid": target_ssid,
+                "password": target_pwd,
+                "serverName": "172.16.50.138",
+                "port": 8080
+            }).encode("utf-8")
+            req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
+            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            with opener.open(req, timeout=3.0) as resp:
+                if resp.status in (200, 204):
+                    success = True
+                    break
+        except Exception as e:
+            err_detail = str(e)
+            time.sleep(1.0)
+
+    # 3. Reconnexion automatique du PC à sa box Wi-Fi principale
+    try:
+        subprocess.run('netsh wlan connect name="adminbadira"', shell=True, timeout=6)
+    except Exception:
+        pass
+
+    if success:
+        serial_logs.append(f"[SONOFF-SETUP] 🎉 Identifiants Wi-Fi '{target_ssid}' injectés avec succès dans le Sonoff !")
+        return jsonify({"success": True, "message": f"Identifiants Wi-Fi injectés avec succès ! Le Sonoff se connecte à '{target_ssid}'."})
+    return jsonify({
+        "success": False, 
+        "error": f"Le Sonoff n'a pas répondu sur 10.10.7.1 ({err_detail}). Assurez-vous que sa LED clignote rapidement et que vous êtes à proximité."
+    }), 400
+
 @app.route("/api/modules/<device_id>/toggle", methods=["POST"])
 def toggle_module(device_id):
     data = request.get_json(silent=True) or request.form.to_dict() or {}
