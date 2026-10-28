@@ -220,13 +220,13 @@ def status():
     dev_id = current_wifi.get("device_id") or "ADA960"
     ip = current_wifi.get("ip")
 
-    # Auto-resolve real active device IP if needed
-    if not ip or ip.startswith("192.168.4.") or ip == "192.168.0.119":
+    # The hardware controller monitors the main ESP32-S3 board
+    if dev_id not in ("ADA960", "F2ED08") or not ip or ip.startswith("192.168.4.") or ip == "192.168.0.119":
         try:
             conn = mysql_manager.get_connection()
             if conn:
                 with conn.cursor() as cur:
-                    cur.execute("SELECT device_id, ip_address, wifi_ssid FROM esp32_device_configs WHERE ip_address IS NOT NULL AND ip_address != '' ORDER BY updated_at DESC LIMIT 1")
+                    cur.execute("SELECT device_id, ip_address, wifi_ssid FROM esp32_device_configs WHERE device_id IN ('ADA960', 'F2ED08') AND ip_address IS NOT NULL AND ip_address != '' ORDER BY updated_at DESC LIMIT 1")
                     row = cur.fetchone()
                     if row and row.get("ip_address"):
                         ip = row["ip_address"]
@@ -239,9 +239,11 @@ def status():
         except Exception:
             pass
 
-    if not ip:
+    if not ip or dev_id not in ("ADA960", "F2ED08"):
         ip = "172.16.50.194"
         dev_id = "ADA960"
+        current_wifi["ip"] = ip
+        current_wifi["device_id"] = dev_id
 
     ping_ms = None
     http_online = False
@@ -823,12 +825,13 @@ def module_telemetry(device_id):
     name = device_id
     room = "Salon"
     relay_on = False
+    db_online = True
     try:
         conn = mysql_manager.get_connection()
         if conn:
             with conn.cursor() as cur:
                 cur.execute("""
-                    SELECT d.id, d.name, d.state, (SELECT name FROM sp_rooms WHERE id = d.roomId) as room_name,
+                    SELECT d.id, d.name, d.online, d.state, (SELECT name FROM sp_rooms WHERE id = d.roomId) as room_name,
                            c.ip_address, c.relay_state, c.wifi_ssid
                     FROM sp_devices d
                     LEFT JOIN esp32_device_configs c ON c.device_id = d.id
@@ -840,6 +843,7 @@ def module_telemetry(device_id):
                     name = row.get("name") or device_id
                     room = row.get("room_name") or "Salon"
                     relay_on = bool(row.get("relay_state", 0))
+                    db_online = bool(row.get("online", 1))
             conn.close()
     except Exception:
         pass
@@ -847,14 +851,15 @@ def module_telemetry(device_id):
     if not ip:
         ip = mysql_manager.DEVICE_IP_MAP.get(device_id) or ("172.16.50.194" if device_id == "ADA960" else None)
 
-    online = False
+    online = db_online
     rssi = -52
     ping_ms = None
-    if ip:
+    if ip and ip != "10.10.7.1":
         try:
             t0 = time.time()
             req = urllib.request.Request(f"http://{ip}/zeroconf/info", headers={"User-Agent": "SmartPower-Ping"})
-            with urllib.request.urlopen(req, timeout=1.2) as resp:
+            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            with opener.open(req, timeout=0.8) as resp:
                 if resp.status == 200:
                     online = True
                     ping_ms = round((time.time() - t0) * 1000, 1)
@@ -863,7 +868,16 @@ def module_telemetry(device_id):
                     raw_switch = data.get("switch", "off")
                     relay_on = (raw_switch == "on")
         except Exception:
-            pass
+            try:
+                t0 = time.time()
+                req = urllib.request.Request(f"http://{ip}/", headers={"User-Agent": "SmartPower-Ping"})
+                opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+                with opener.open(req, timeout=0.6) as resp:
+                    if resp.status == 200:
+                        online = True
+                        ping_ms = round((time.time() - t0) * 1000, 1)
+            except Exception:
+                pass
 
     timer_info = active_device_timers.get(device_id)
     rem_timer = max(0, int(timer_info["end_time"] - time.time())) if timer_info else 0
