@@ -57,31 +57,33 @@ def get_active_subnets():
                     subnets.add(f"{parts[0]}.{parts[1]}.{parts[2]}")
     except Exception:
         pass
-    if not subnets:
-        subnets.update(["192.168.0", "192.168.1", "172.16.50"])
+    # Toujours inclure les plages du réseau local Badira et standards
+    subnets.update(["172.16.50", "172.16.51", "192.168.0", "192.168.1"])
     return list(subnets)
 
 def ping_subnet_quick():
-    """Quick ping sweep to populate ARP table for any silent devices."""
+    """Quick ultra-fast parallel ping sweep using thread pool to populate ARP table."""
+    import concurrent.futures
     def ping(ip):
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.settimeout(0.08)
         try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.settimeout(0.04)
             s.connect((ip, 54321))
             s.send(b'')
+            s.close()
         except:
             pass
-        finally:
-            s.close()
 
-    threads = []
+    all_ips = []
     for subnet in get_active_subnets():
         for i in range(1, 255):
-            t = threading.Thread(target=ping, args=(f"{subnet}.{i}",))
-            threads.append(t)
-            t.start()
-    for t in threads:
-        t.join(timeout=0.15)
+            all_ips.append(f"{subnet}.{i}")
+
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=100) as executor:
+            list(executor.map(ping, all_ips, timeout=0.8))
+    except Exception:
+        pass
 
 def discover_lan():
     ping_subnet_quick()
