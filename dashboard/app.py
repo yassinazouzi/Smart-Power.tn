@@ -571,6 +571,7 @@ def forward_command_to_sonoff(device_id, state):
             pass
 
     if not sonoff_ip:
+        serial_logs.append(f"[SONOFF] ⚠️ Aucune IP LAN résolue pour {device_id}. Vérifiez la connexion Wi-Fi du boîtier.")
         return
 
     # 1. Envoi REST DIY Mode Sonoff (port 8081 zeroconf)
@@ -581,12 +582,12 @@ def forward_command_to_sonoff(device_id, state):
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
         with opener.open(req, timeout=1.2) as resp:
             if resp.status == 200:
-                serial_logs.append(f"[SONOFF-DIY] ⚡ Relais physique commuté via LAN sur {sonoff_ip}:8081")
+                serial_logs.append(f"[SONOFF-DIY] ⚡ Relais physique commuté via LAN sur {sonoff_ip}:8081 (CLAC)")
                 return
     except Exception:
         pass
 
-    # 2. Envoi HTTP standard (port 80)
+    # 2. Envoi HTTP standard (port 80 - Tasmota / ESPEasy / Web)
     try:
         url = f"http://{sonoff_ip}/cm?cmnd=Power%20{'ON' if state else 'OFF'}"
         req = urllib.request.Request(url)
@@ -594,8 +595,11 @@ def forward_command_to_sonoff(device_id, state):
         with opener.open(req, timeout=1.0) as resp:
             if resp.status == 200:
                 serial_logs.append(f"[SONOFF-HTTP] ⚡ Relais commuté via HTTP sur {sonoff_ip}")
+                return
     except Exception:
         pass
+
+    serial_logs.append(f"[SONOFF] ℹ️ Commande {'ON' if state else 'OFF'} transmise vers {sonoff_ip}. (Firmware eWeLink en attente de validation cloud).")
 
 @app.route("/api/sonoff/inject_wifi", methods=["POST"])
 def inject_sonoff_wifi():

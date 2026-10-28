@@ -199,11 +199,11 @@
 
             <!-- Center: View Switcher (Vue 3D Live vs Grille) -->
             <div class="hidden sm:inline-flex p-0.5 bg-slate-100 dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700 text-xs font-bold shadow-2xs shrink-0">
-                <button onclick="switchMainView('3d')" id="btnView3d" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-xs transition active:scale-95">
+                <button onclick="switchMainView('3d')" id="btnView3d" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition active:scale-95">
                     <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
                     <span>Vue 3D</span>
                 </button>
-                <button onclick="switchMainView('classic')" id="btnViewClassic" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition active:scale-95">
+                <button onclick="switchMainView('classic')" id="btnViewClassic" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-700 text-orange-600 dark:text-orange-400 shadow-xs transition active:scale-95">
                     <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i>
                     <span>Grille</span>
                 </button>
@@ -356,7 +356,7 @@
         <!-- ========================================================================= -->
         <!-- VIEW 1: LIVE 3D APARTMENT INTERACTIVE VIEW (MATCHING USER SCREENSHOT)     -->
         <!-- ========================================================================= -->
-        <div id="view3dContainer" class="animate-in fade-in duration-300 space-y-4">
+        <div id="view3dContainer" class="hidden animate-in fade-in duration-300 space-y-4">
             
             <div class="relative w-full rounded-3xl bg-slate-100/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-700/80 p-3 sm:p-5 lg:p-6 shadow-xl backdrop-blur-xl">
                 
@@ -873,7 +873,7 @@
         <!-- ========================================================================= -->
         <!-- VIEW 2: CLASSIC SAAS GRID VIEW (OPTIMIZED 2-COLUMNS RESPONSIVE LAYOUT)     -->
         <!-- ========================================================================= -->
-        <div id="viewClassicContainer" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div id="viewClassicContainer" class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             
             <!-- ================= LEFT SIDEBAR (4 COLS): VILLA, LIVE ESP32 & POWER ================= -->
             <div class="lg:col-span-5 xl:col-span-4 space-y-6">
@@ -2118,10 +2118,10 @@
             <!-- SECTION 1: COMMUTATEUR RELAIS XXL -->
             <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-orange-50/40 dark:from-slate-900/60 dark:to-orange-950/20 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between">
                 <div>
-                    <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Alimentation Principale</div>
+                    <div id="remoteRelaySubheader" class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Alimentation Principale</div>
                     <div id="remoteRelayStateLabel" class="text-lg sm:text-xl font-extrabold text-slate-800 dark:text-white font-mono mt-0.5">Éteint (Relais Ouvert)</div>
                     <div class="text-xs text-slate-400 mt-1 flex items-center space-x-2">
-                        <span>10A / 2300W • GPIO 26</span>
+                        <span id="remoteRelaySpec">10A / 2300W • GPIO 26</span>
                         <span id="remoteLiveFeedback" class="text-emerald-600 dark:text-emerald-400 font-semibold font-mono text-[11px] hidden">⚡ Commuté avec succès</span>
                     </div>
                 </div>
@@ -2131,7 +2131,7 @@
             </div>
 
             <!-- SECTION 2: ÉCLAIRAGE & LED RGB WS2812 DE LA CARTE -->
-            <div class="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-700/80 space-y-3.5">
+            <div id="remoteRgbSection" class="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-700/80 space-y-3.5">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center space-x-2">
                         <i data-lucide="palette" class="w-4 h-4 text-orange-500"></i>
@@ -2438,9 +2438,48 @@
             }
         }
 
+        // Web Audio Realistic Relay Click Sound Synthesizer
+        let audioRelayCtx = null;
+        function playRelaySound(isOn) {
+            try {
+                if (!audioRelayCtx) {
+                    audioRelayCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioRelayCtx.state === 'suspended') {
+                    audioRelayCtx.resume();
+                }
+                const now = audioRelayCtx.currentTime;
+                // Dual-phase mechanical click: main contact snap + arm vibration
+                const osc = audioRelayCtx.createOscillator();
+                const gain = audioRelayCtx.createGain();
+                osc.type = isOn ? 'square' : 'triangle';
+                osc.frequency.setValueAtTime(isOn ? 920 : 680, now);
+                osc.frequency.exponentialRampToValueAtTime(70, now + 0.04);
+                gain.gain.setValueAtTime(0.32, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+                osc.connect(gain);
+                gain.connect(audioRelayCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.042);
+
+                const osc2 = audioRelayCtx.createOscillator();
+                const gain2 = audioRelayCtx.createGain();
+                osc2.type = 'sine';
+                osc2.frequency.setValueAtTime(isOn ? 1400 : 1100, now + 0.012);
+                osc2.frequency.exponentialRampToValueAtTime(160, now + 0.038);
+                gain2.gain.setValueAtTime(0.16, now + 0.012);
+                gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.038);
+                osc2.connect(gain2);
+                gain2.connect(audioRelayCtx.destination);
+                osc2.start(now + 0.012);
+                osc2.stop(now + 0.04);
+            } catch(e) {}
+        }
+
         function toggleSimpleSwitch(name) {
             lightStates[name] = !lightStates[name];
             const active = lightStates[name];
+            playRelaySound(active);
             if (name === 'bedroom_3d') {
                 if (bedroomPointLight) bedroomPointLight.intensity = active ? 1.6 : 0;
                 const bBubble = document.getElementById('pin_bedroom_bubble');
@@ -2460,6 +2499,7 @@
         function toggleLightSwitch(id) {
             lightStates[id] = !lightStates[id];
             const active = lightStates[id];
+            playRelaySound(active);
             const btn = document.getElementById(`btn_${id}`);
             if (btn) {
                 btn.className = active ? 'sp-toggle active' : 'sp-toggle inactive';
@@ -2620,9 +2660,10 @@
                 const res = await fetch(`/api/modules/${devId}/toggle`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
                 const data = await res.json();
                 if (data.success) {
+                    playRelaySound(data.relay_state !== undefined ? data.relay_state : true);
                     loadModules();
-                    if (data.new_state !== undefined) {
-                        sync3dSceneWithHardware(data.new_state);
+                    if (data.relay_state !== undefined) {
+                        sync3dSceneWithHardware(data.relay_state);
                     }
                 }
             } catch(e) {}
@@ -3612,14 +3653,14 @@
         // =========================================================================
         // LIVE 3D INTERACTIVE APARTMENT ENGINE (THREE.JS + WEBGL + HARDWARE SYNC)
         // =========================================================================
-        let currentMainView = '3d';
+        let currentMainView = 'classic';
         let scene3d, camera3d, renderer3d, controls3d;
         let salonPointLight, bedroomPointLight, salonBulbMesh, tvBacklight;
         let ambientLight3d, sunLight3d, nightLight3d;
         let is3dNightMode = false, isAutoRotate = false;
         let vacuumMesh = null, vacuumAngle = 0;
         let targetCamPos = null, targetCamLookAt = null;
-        let is3dInitialized = false, is3dRendering = true;
+        let is3dInitialized = false, is3dRendering = false;
         let current3dFilter = 'all';
         let climateTemp = 22;
         let isDoorLocked = true;
@@ -4662,7 +4703,7 @@
         loadModules();
         loadUserAccount();
         updateHardwareStatus();
-        setTimeout(initThreeJsApartment, 200);
+        switchMainView('classic'); // Vue Grille par défaut
         setInterval(loadModules, 3500);
         setInterval(updateHardwareStatus, 2500);
         setInterval(updateLogs, 1500);
@@ -4880,6 +4921,11 @@ Votre module ESP32-S3 (${targetId}) est connecté au Wi-Fi (IP: ${res.ip}) et aj
             activeRemoteDeviceId = deviceId || 'ADA960';
             const mod = (modulesList || []).find(m => m.id === activeRemoteDeviceId);
             
+            const isSonoff = (activeRemoteDeviceId && activeRemoteDeviceId.toLowerCase().includes('sonoff')) || 
+                             (mod && ((mod.name || '').toLowerCase().includes('sonoff') || (mod.id || '').toLowerCase().includes('sonoff') || (mod.model || '').toLowerCase().includes('sonoff')));
+            const isPlug = (mod && mod.type === 'PLUG') || (mod && (mod.name || '').toLowerCase().includes('prise'));
+            const isRgb = !isSonoff && (activeRemoteDeviceId === 'ADA960' || activeRemoteDeviceId === 'F2ED08' || (mod && (mod.type === 'RGB_LIGHT' || mod.type === 'LIGHT_RGB')));
+            
             const titleEl = document.getElementById('remoteModalTitle');
             const badgeEl = document.getElementById('remoteModalIdBadge');
             const roomEl = document.getElementById('remoteModalRoomText');
@@ -4888,14 +4934,54 @@ Votre module ESP32-S3 (${targetId}) est connecté au Wi-Fi (IP: ${res.ip}) et aj
             const macEl = document.getElementById('remoteDiagMac');
             
             if (mod) {
-                if (titleEl) titleEl.textContent = mod.name || `Module ${activeRemoteDeviceId}`;
+                if (titleEl) titleEl.textContent = mod.name || (isSonoff ? 'Interrupteur Sonoff' : `Module ${activeRemoteDeviceId}`);
                 if (badgeEl) badgeEl.textContent = mod.id;
                 if (roomEl) roomEl.textContent = mod.room || 'Salon';
                 activeRemoteDeviceIp = mod.ip || (activeRemoteDeviceId === 'ADA960' ? '172.16.50.194' : '192.168.0.119');
             } else {
-                if (titleEl) titleEl.textContent = activeRemoteDeviceId === 'ADA960' ? 'Interrupteur ESP32-S3' : `Module ${activeRemoteDeviceId}`;
+                if (titleEl) titleEl.textContent = activeRemoteDeviceId === 'ADA960' ? 'Interrupteur ESP32-S3' : (isSonoff ? 'Interrupteur Sonoff' : `Module ${activeRemoteDeviceId}`);
                 if (badgeEl) badgeEl.textContent = activeRemoteDeviceId;
                 activeRemoteDeviceIp = (activeRemoteDeviceId === 'ADA960' ? '172.16.50.194' : '192.168.0.119');
+            }
+            
+            // Masquer la section LED RGB pour les Sonoff et modules sans RGB
+            const rgbSection = document.getElementById('remoteRgbSection');
+            if (rgbSection) {
+                if (isRgb) {
+                    rgbSection.classList.remove('hidden');
+                } else {
+                    rgbSection.classList.add('hidden');
+                }
+            }
+
+            // Adapter la fiche technique du relais
+            const relaySpec = document.getElementById('remoteRelaySpec');
+            if (relaySpec) {
+                if (isSonoff) {
+                    relaySpec.textContent = '10A / 2300W • Relais 230V AC (Sonoff Wi-Fi)';
+                } else if (isPlug) {
+                    relaySpec.textContent = '16A / 3680W • Relais 230V AC (Prise)';
+                } else if (activeRemoteDeviceId === 'ADA960' || activeRemoteDeviceId === 'F2ED08') {
+                    relaySpec.textContent = '10A / 2300W • GPIO 26 (ESP32-S3)';
+                } else {
+                    relaySpec.textContent = 'Commutateur 230V AC';
+                }
+            }
+
+            // Adapter l'icône du header
+            const modalIconBox = document.getElementById('remoteModalIconBox');
+            const modalIcon = document.getElementById('remoteModalIcon');
+            if (modalIcon && modalIconBox) {
+                if (isSonoff) {
+                    modalIcon.setAttribute('data-lucide', 'zap');
+                    modalIconBox.className = 'w-12 h-12 rounded-2xl bg-gradient-to-tr from-sky-500 to-blue-600 text-white flex items-center justify-center shadow-lg shadow-sky-500/25 shrink-0';
+                } else if (isRgb) {
+                    modalIcon.setAttribute('data-lucide', 'cpu');
+                    modalIconBox.className = 'w-12 h-12 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center shadow-lg shadow-orange-500/25 shrink-0';
+                } else {
+                    modalIcon.setAttribute('data-lucide', 'power');
+                    modalIconBox.className = 'w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/25 shrink-0';
+                }
             }
             
             if (ipEl) {
@@ -4903,10 +4989,15 @@ Votre module ESP32-S3 (${targetId}) est connecté au Wi-Fi (IP: ${res.ip}) et aj
                 ipEl.href = 'http://' + activeRemoteDeviceIp;
             }
             if (webBtn) {
-                webBtn.href = 'http://' + activeRemoteDeviceIp;
+                if (isSonoff) {
+                    webBtn.classList.add('hidden');
+                } else {
+                    webBtn.classList.remove('hidden');
+                    webBtn.href = 'http://' + activeRemoteDeviceIp;
+                }
             }
-            if (macEl && activeRemoteDeviceId === 'ADA960') {
-                macEl.textContent = 'b4:3a:45:ad:a9:60';
+            if (macEl) {
+                macEl.textContent = (mod && mod.mac) ? mod.mac : (activeRemoteDeviceId === 'ADA960' ? 'b4:3a:45:ad:a9:60' : 'Inconnue');
             }
 
             // Sync relay button
@@ -4947,6 +5038,7 @@ Votre module ESP32-S3 (${targetId}) est connecté au Wi-Fi (IP: ${res.ip}) et aj
                 });
                 const data = await res.json();
                 if (data.success && data.relay_state !== undefined) {
+                    playRelaySound(data.relay_state);
                     syncRemoteRelayUi(data.relay_state);
                     loadModules();
                     if (activeRemoteDeviceId === 'ADA960' || activeRemoteDeviceId === 'F2ED08') {
